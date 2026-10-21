@@ -72,9 +72,12 @@ def _write_object(stage, obj_path, category, config) -> None:
         box.GetPrim().CreateAttribute("hearth_task_object", Sdf.ValueTypeNames.String).Set(category)
     # Optional yaw.
     if config.orientation_deg:
-        rot = box.CreateOrientationAttr()
         import math
-        rot.Set(Gf.Rotation(0, 0, 1, math.radians(config.orientation_deg)))
+        from pxr import Sdf
+        prim = box.GetPrim()
+        rot = prim.CreateAttribute("hearth_yaw", Sdf.ValueTypeNames.Quatd)
+        theta = math.radians(config.orientation_deg)
+        rot.Set(Gf.Quatd(math.cos(theta / 2), Gf.Vec3d(0, 0, math.sin(theta / 2))))
 
 
 def write_usd(scene: Scene, path: str) -> str:

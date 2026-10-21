@@ -52,11 +52,11 @@ See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on Git
 | # | Milestone | Status |
 |---|-----------|--------|
 | 1 | Repo scaffolding, docs, config, CI | done |
-| 2 | Procedural scene generator | done |
+| 2 | Procedural scene generator | done · writer produces valid, inspectable `.usd` (verified round-trip) |
 | 3 | Isaac Lab extension scaffolding | pending |
 | 4 | Data pipeline + storage format | pending |
 | 5 | Training configs (PPO/diffusion/VLA) | pending |
-| 6 | Evaluation harness | done |
+| 6 | Evaluation harness | done · `hearth-eval` CLI passes smoke test |
 | 7 | Sim-to-real + deployment | pending |
 | 8 | Docker, datasheet, architecture, handover | pending |
 
