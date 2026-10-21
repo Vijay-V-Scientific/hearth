@@ -1,0 +1,1047 @@
+id: hearth_50
+version: 1
+description: >
+  50-task long-horizon household benchmark (brief objective 4).
+  70% success target on tasks of 5-15 sub-steps from a
+  natural-language instruction.
+families:
+  - kitchen
+  - fetch
+  - articulated
+  - tidying
+  - carrying
+metadata:
+  objective: 4
+  target_success_rate: 0.70
+tasks:
+  # KITCHEN (14)
+  - id: kitchen_0001
+    family: kitchen
+    difficulty: easy
+    instruction: Clear the dinner table and load the cups into the dishwasher.
+    substeps:
+      - description: Pick up a cup from the table.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the dishwasher.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the cup into a dishwasher rack slot.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a plate from the table.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the plate into a dishwasher rack slot.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0002
+    family: kitchen
+    difficulty: easy
+    instruction: Put the groceries away in the fridge.
+    substeps:
+      - description: Pick up a milk carton from the counter.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the fridge door.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the milk carton on a fridge shelf.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a loaf of bread from the table.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the bread in the fridge cr drawer.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0003
+    family: kitchen
+    difficulty: medium
+    instruction: Load the dishwasher with plates, cups and cutlery.
+    substeps:
+      - description: Pick up a plate and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a cup and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a fork and load it into the cutlery drawer.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a knife and load it into the cutlery drawer.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a glass and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0004
+    family: kitchen
+    difficulty: medium
+    instruction: Put away the clean dishes from the dishwasher.
+    substeps:
+      - description: Open the dishwasher.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Take a plate out of the dishwasher.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the plate in the cupboard.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Take a cup out of the dishwasher.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the cup in the cupboard.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0005
+    family: kitchen
+    difficulty: medium
+    instruction: Clear the table and load the dishwasher for two settings.
+    substeps:
+      - description: Pick up the first plate and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up the second plate and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up the first cup and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up the second cup and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up the cutlery set and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0006
+    family: kitchen
+    difficulty: medium
+    instruction: Load the dishwasher with dirty cookware.
+    substeps:
+      - description: Pick up a saucepan from the sink.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load the saucepan into the dishwasher lower rack.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a pot lid from the counter.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load the pot lid into the dishwasher.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up a wooden spoon from the counter.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0007
+    family: kitchen
+    difficulty: hard
+    instruction: Clear the table, load the dishwasher and wipe the table.
+    substeps:
+      - description: Pick up all dirty plates and load them.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up all dirty cups and load them.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up the cutlery and load it.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Wipe the table clean.
+        success_condition: task completed
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Turn off the dishwasher.
+        success_condition: task completed
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0008
+    family: kitchen
+    difficulty: hard
+    instruction: Put away all groceries from the bag into the fridge and pantry.
+    substeps:
+      - description: Pick up milk and put it in the fridge.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up eggs and put them in the fridge.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up cereal and put it in the pantry.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up canned beans and put them in the pantry.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Put away the bread in the pantry.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0009
+    family: kitchen
+    difficulty: hard
+    instruction: Load the dishwasher, run it, and unload into the cupboard.
+    substeps:
+      - description: Load two plates into the dishwasher.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Start the dishwasher cycle.
+        success_condition: task completed
+        timeout_s: 60.0
+        weight: 1.0
+      - description: After the cycle, unload the plates into the cupboard.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 90.0
+        weight: 1.0
+      - description: Unload the cups into the cupboard.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Unload the cutlery into the drawer.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0010
+    family: kitchen
+    difficulty: hard
+    instruction: Clear a full breakfast table for four.
+    substeps:
+      - description: Load four plates.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load four cups.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load four forks.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load four knives.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load the serving dishes.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0011
+    family: kitchen
+    difficulty: hard
+    instruction: Clear the table and load the dishwasher with a full dinner set.
+    substeps:
+      - description: Load six plates.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load six cups.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load six forks.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load six knives.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load six spoons.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0012
+    family: kitchen
+    difficulty: hard
+    instruction: Clear the table, load the dishwasher, and put away leftovers.
+    substeps:
+      - description: Load all dirty dishes into the dishwasher.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Cover and store the leftover food in the fridge.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Start the dishwasher.
+        success_condition: task completed
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Wipe the table clean.
+        success_condition: task completed
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Put away the cleaning supplies.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+  - id: kitchen_0013
+    family: kitchen
+    difficulty: hard
+    instruction: Complete a full kitchen reset after dinner for six.
+    substeps:
+      - description: Load six dinner plates.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load six dessert plates.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load six glasses.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Load six pieces of cutlery.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Run the dishwasher and confirm completion.
+        success_condition: task completed
+        timeout_s: 90.0
+        weight: 1.0
+  - id: kitchen_0014
+    family: kitchen
+    difficulty: hard
+    instruction: Full kitchen cleanup: dishwasher, pantry, and surfaces.
+    substeps:
+      - description: Pre-rinse and load the dirty pots.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pre-rinse and load the dirty pans.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Store the cleaned utensils in the drawer.
+        success_condition: item placed in correct appliance slot
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Wipe down all counters.
+        success_condition: task completed
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Take out the trash.
+        success_condition: task completed
+        timeout_s: 60.0
+        weight: 1.0
+
+  # FETCH (12)
+  - id: fetch_0001
+    family: fetch
+    difficulty: easy
+    instruction: Bring me the red mug from the kitchen.
+    substeps:
+      - description: Locate the red mug in the kitchen.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the red mug.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the red mug to the requester.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0002
+    family: fetch
+    difficulty: easy
+    instruction: Bring me the blue book from the living room.
+    substeps:
+      - description: Locate the blue book.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the blue book.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the blue book to the requester.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0003
+    family: fetch
+    difficulty: easy
+    instruction: Fetch the remote control from the bedroom.
+    substeps:
+      - description: Locate the remote control.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the remote control.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the remote control.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0004
+    family: fetch
+    difficulty: easy
+    instruction: Bring me the yellow cup from the kitchen.
+    substeps:
+      - description: Locate the yellow cup.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the yellow cup.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the yellow cup.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0005
+    family: fetch
+    difficulty: medium
+    instruction: Bring me the phone, but search for it first.
+    substeps:
+      - description: Search for the phone in the living room.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Locate the phone under a cushion.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the phone.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the phone to the requester.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0006
+    family: fetch
+    difficulty: medium
+    instruction: Fetch the keys, which are somewhere in the apartment.
+    substeps:
+      - description: Search the entryway for the keys.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Locate the keys on the hook.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the keys.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the keys to the requester.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0007
+    family: fetch
+    difficulty: medium
+    instruction: Bring me the orange from the kitchen, then the apple.
+    substeps:
+      - description: Fetch the orange from the fruit bowl.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the orange.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Search for the apple in the kitchen.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the apple.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0008
+    family: fetch
+    difficulty: medium
+    instruction: Fetch the towel from the bathroom and bring it to me.
+    substeps:
+      - description: Navigate to the bathroom.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Locate the towel on the rack.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the towel.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the towel to the requester.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0009
+    family: fetch
+    difficulty: hard
+    instruction: Fetch the book, a mug, and the keys in one trip.
+    substeps:
+      - description: Locate and grasp the book.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the book.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Locate and grasp the mug.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the mug.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Locate and grasp the keys.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0010
+    family: fetch
+    difficulty: hard
+    instruction: Fetch five different objects the requester names sequentially.
+    substeps:
+      - description: Fetch object 1.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Fetch object 2.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Fetch object 3.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Fetch object 4.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Fetch object 5.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0011
+    family: fetch
+    difficulty: hard
+    instruction: Search and fetch the lost wedding ring from the apartment.
+    substeps:
+      - description: Search the kitchen for the ring.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Search the living room for the ring.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Search the bedroom for the ring.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Locate the ring on the floor.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp and deliver the ring.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+  - id: fetch_0012
+    family: fetch
+    difficulty: hard
+    instruction: Fetch a specific object from a room the agent has not seen.
+    substeps:
+      - description: Explore the unknown room.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Locate the requested object in the room.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the requested object.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the requested object.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Return to the requester.
+        success_condition: requested object delivered to the requester
+        timeout_s: 60.0
+        weight: 1.0
+
+  # ARTICULATED (10)
+  - id: articulated_0001
+    family: articulated
+    difficulty: easy
+    instruction: Open the kitchen cabinet.
+    substeps:
+      - description: Approach the kitchen cabinet.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the cabinet handle.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the cabinet fully.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0002
+    family: articulated
+    difficulty: easy
+    instruction: Open the front door.
+    substeps:
+      - description: Approach the front door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the door handle.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the door fully.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0003
+    family: articulated
+    difficulty: easy
+    instruction: Close the kitchen drawer.
+    substeps:
+      - description: Approach the kitchen drawer.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the drawer handle.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Close the drawer fully.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0004
+    family: articulated
+    difficulty: easy
+    instruction: Turn on the living room light switch.
+    substeps:
+      - description: Approach the light switch.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the light switch.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Turn the switch on.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0005
+    family: articulated
+    difficulty: medium
+    instruction: Open the microwave and close it.
+    substeps:
+      - description: Approach the microwave.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the microwave door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Close the microwave door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0006
+    family: articulated
+    difficulty: medium
+    instruction: Open and close the fridge door.
+    substeps:
+      - description: Approach the fridge.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the fridge door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Close the fridge door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0007
+    family: articulated
+    difficulty: medium
+    instruction: Open the bathroom cabinet and close it.
+    substeps:
+      - description: Approach the bathroom cabinet.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the cabinet.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Close the cabinet.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0008
+    family: articulated
+    difficulty: hard
+    instruction: Open all three living room drawers.
+    substeps:
+      - description: Open the top drawer.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the middle drawer.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the bottom drawer.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0009
+    family: articulated
+    difficulty: hard
+    instruction: Open the front door, then close it.
+    substeps:
+      - description: Open the front door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Walk through the doorway.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Close the front door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+  - id: articulated_0010
+    family: articulated
+    difficulty: hard
+    instruction: Open the oven door and close it safely.
+    substeps:
+      - description: Approach the oven.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Open the oven door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Close the oven door.
+        success_condition: articulated object reached target state
+        timeout_s: 60.0
+        weight: 1.0
+
+  # TIDYING (7)
+  - id: tidying_0001
+    family: tidying
+    difficulty: easy
+    instruction: Pick up the clothes from the floor and put them in the laundry basket.
+    substeps:
+      - description: Locate the clothes on the floor.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Gather the clothes.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the clothes in the laundry basket.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+  - id: tidying_0002
+    family: tidying
+    difficulty: easy
+    instruction: Put the books back on the bookshelf.
+    substeps:
+      - description: Locate the books on the floor.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Pick up the books.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the books on the shelf.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+  - id: tidying_0003
+    family: tidying
+    difficulty: medium
+    instruction: Pick up the scattered toys and put them in the toy box.
+    substeps:
+      - description: Locate the toys in the living room.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Gather the toys.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the toys in the toy box.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+  - id: tidying_0004
+    family: tidying
+    difficulty: medium
+    instruction: Fold the laundry and put the clothes away.
+    substeps:
+      - description: Pick up a shirt from the pile.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Fold the shirt.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Place the folded shirt in the drawer.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+  - id: tidying_0005
+    family: tidying
+    difficulty: hard
+    instruction: Clean the living room: pick up trash, books and clothes.
+    substeps:
+      - description: Pick up the trash.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Put the trash in the bin.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Put the books on the shelf.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Put the clothes in the laundry basket.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+  - id: tidying_0006
+    family: tidying
+    difficulty: hard
+    instruction: Tidy the bedroom: bed, clothes and books.
+    substeps:
+      - description: Make the bed.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Put the clothes in the drawer.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Put the books on the shelf.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+  - id: tidying_0007
+    family: tidying
+    difficulty: hard
+    instruction: Full tidy: every room must be clean.
+    substeps:
+      - description: Tidy the kitchen.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Tidy the living room.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Tidy the bedroom.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Tidy the bathroom.
+        success_condition: object placed in correct target location
+        timeout_s: 60.0
+        weight: 1.0
+
+  # CARRYING (7)
+  - id: carrying_0001
+    family: carrying
+    difficulty: easy
+    instruction: Carry the box from the kitchen to the living room.
+    substeps:
+      - description: Approach the box in the kitchen.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp and lift the box.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the box to the living room.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+  - id: carrying_0002
+    family: carrying
+    difficulty: easy
+    instruction: Carry the laundry basket to the bedroom.
+    substeps:
+      - description: Approach the laundry basket.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the laundry basket.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the basket to the bedroom.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+  - id: carrying_0003
+    family: carrying
+    difficulty: easy
+    instruction: Carry the chair from the kitchen to the dining area.
+    substeps:
+      - description: Approach the chair.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Grasp the chair.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the chair to the dining area.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+  - id: carrying_0004
+    family: carrying
+    difficulty: medium
+    instruction: Carry the box through the hallway to the bedroom.
+    substeps:
+      - description: Grasp the box in the kitchen.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Walk through the hallway.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the box to the bedroom.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+  - id: carrying_0005
+    family: carrying
+    difficulty: medium
+    instruction: Carry two chairs from the kitchen to the dining room.
+    substeps:
+      - description: Carry the first chair.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Return to the kitchen.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the second chair.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+  - id: carrying_0006
+    family: carrying
+    difficulty: hard
+    instruction: Carry the box and the basket from the kitchen to the bedroom.
+    substeps:
+      - description: Lift the box.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the box to the bedroom.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Return and lift the basket.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Deliver the basket to the bedroom.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+  - id: carrying_0007
+    family: carrying
+    difficulty: hard
+    instruction: Carry furniture from the living room to the bedroom, clearing the room.
+    substeps:
+      - description: Carry the sofa to the bedroom.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the table to the bedroom.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
+      - description: Carry the lamp to the bedroom.
+        success_condition: carried object released at the destination
+        timeout_s: 60.0
+        weight: 1.0
