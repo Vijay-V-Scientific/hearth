@@ -343,7 +343,7 @@ tasks:
   - id: kitchen_0014
     family: kitchen
     difficulty: hard
-    instruction: Full kitchen cleanup: dishwasher, pantry, and surfaces.
+    instruction: "Full kitchen cleanup: dishwasher, pantry, and surfaces."
     substeps:
       - description: Pre-rinse and load the dirty pots.
         success_condition: item placed in correct appliance slot
@@ -864,7 +864,7 @@ tasks:
   - id: tidying_0005
     family: tidying
     difficulty: hard
-    instruction: Clean the living room: pick up trash, books and clothes.
+    instruction: "Clean the living room: pick up trash, books and clothes."
     substeps:
       - description: Pick up the trash.
         success_condition: object placed in correct target location
@@ -885,7 +885,7 @@ tasks:
   - id: tidying_0006
     family: tidying
     difficulty: hard
-    instruction: Tidy the bedroom: bed, clothes and books.
+    instruction: "Tidy the bedroom: bed, clothes and books."
     substeps:
       - description: Make the bed.
         success_condition: object placed in correct target location
@@ -902,7 +902,7 @@ tasks:
   - id: tidying_0007
     family: tidying
     difficulty: hard
-    instruction: Full tidy: every room must be clean.
+    instruction: "Full tidy: every room must be clean."
     substeps:
       - description: Tidy the kitchen.
         success_condition: object placed in correct target location
