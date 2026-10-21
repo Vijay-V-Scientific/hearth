@@ -135,14 +135,20 @@ class MotorLatencyModel:
             raise CalibrationError(
                 "need at least two samples to fit the motor latency model"
             )
+        # predict() returns position_error - gain*velocity*latency_s + bias,
+        # i.e. predicted = 1*pos + (-gain*latency_s)*vel + bias. Match the
+        # design matrix to that exact form so fit() and predict() agree.
         design = np.stack(
-            [position_errors, -velocities * 0.01, np.ones_like(position_errors)],
+            [position_errors, -velocities, np.ones_like(position_errors)],
             axis=1,
         )
-        # Solve design @ [gain, latency_scaled, bias] = measured
+        # Solve design @ [gain, gain*latency_s, bias] = measured
         coeffs, _, _, _ = np.linalg.lstsq(design, measured, rcond=None)
         self.gain = float(coeffs[0])
-        self.latency_s = float(abs(coeffs[1]))
+        # latency_s = (gain*latency_s) / gain; take abs since a delay is
+        # non-negative. Guard against a near-zero gain from a degenerate fit.
+        gain = float(coeffs[0])
+        self.latency_s = float(abs(coeffs[1] / gain)) if abs(gain) > 1e-9 else 0.0
         self.bias = float(coeffs[2])
         predicted = design @ coeffs
         residual = float(np.sqrt(np.mean((measured - predicted) ** 2)))
