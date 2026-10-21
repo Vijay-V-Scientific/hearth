@@ -14,6 +14,12 @@ An autonomous humanoid household-manipulation research stack: a full-size humano
 - This repo ships the **real, runnable pieces that don't need Isaac Sim** (scene generator, evaluation harness, data format, configs, CI, Docker, docs) plus **clean integration points** for everything that does.
 - What is *done and tested here* vs *scaffolding / needs hardware* is marked explicitly in every file.
 
+## Demo
+
+G1 humanoid walking on rough terrain in Isaac Sim / Isaac Lab (sim-to-real locomotion).
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/0kOhHVG1-OY" title="G1 humanoid walking on rough terrain" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 ## The six objectives (first-draft targets for the kickoff)
 
 | # | Objective | Success criterion | Measured in |
