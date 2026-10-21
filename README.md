@@ -54,7 +54,7 @@ See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on Git
 | 1 | Repo scaffolding, docs, config, CI | done |
 | 2 | Procedural scene generator | done |
 | 3 | Isaac Lab extension scaffolding | pending |
-| 4 | Data pipeline + storage format | done |
+| 4 | Data pipeline + storage format | pending |
 | 5 | Training configs (PPO/diffusion/VLA) | pending |
 | 6 | Evaluation harness | done |
 | 7 | Sim-to-real + deployment | pending |
