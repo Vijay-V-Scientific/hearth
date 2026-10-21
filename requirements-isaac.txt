@@ -1,0 +1,7 @@
+# HEARTH — Isaac Sim / Isaac Lab runtime.
+# Install ONLY inside the Isaac Sim container. Requires an RTX 4090/5090 (Ada+) and Isaac Sim 5.x.
+# See docker/README.md and docs/01_architecture.md.
+isaacsim>=5.0
+isaaclab>=0.3
+# The core HEARTH package is installed alongside this in the container.
+-r requirements.txt

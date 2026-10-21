@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Isaac Sim / Omniverse
+*.usd_cache/
+omni_cache/
+.usd/
+omni/kit/
+
+# Trained artifacts (large)
+checkpoints/
+*.onnx
+*.trt
+*.engine
+
+# Data (potentially 200–400 TB — never commit data)
+data/raw/
+data/episodes/
+*.h5
+*.hdf5
+*.lerobot/

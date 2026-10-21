@@ -1,0 +1,13 @@
+# Project HEARTH — core runtime (CPU-safe, no CUDA-specific torch pin)
+numpy>=1.26,<2.2
+scipy>=1.12
+sympy>=1.12
+h5py>=3.11
+pyyaml>=6.0
+jsonschema>=4.20
+tqdm>=4.66
+loguru>=0.7
+torch>=2.4
+torchvision>=0.19
+jax[cpu]>=0.4.30
+matplotlib>=3.9
