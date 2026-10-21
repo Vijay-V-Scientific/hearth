@@ -26,7 +26,17 @@ An autonomous humanoid household-manipulation research stack: a full-size humano
 | 6 | Real-time control | Low-level policy 500 Hz; VLA planner ≥ 5 Hz on onboard compute | Sim + real |
 ## The three-layer control architecture
 
-## The three-layer control architecture
+The humanoid is driven by three stacked controllers, each a plain dataclass
+contract (see `hearth/isaac/control.py`):
+
+| Layer | Rate | Responsibility |
+|-------|------|----------------|
+| Layer 2 — VLA planner | 5–10 Hz | instruction → list of semantic sub-goals (navigate / open / grasp / carry / fetch) |
+| Layer 1 — loco-manipulation | 50–100 Hz | sub-goal → whole-body + five-finger hand control |
+| Layer 0 — locomotion | 500 Hz | joint position targets + whole-body balance |
+
+The actual tensors are produced by Isaac Lab at runtime; these classes only
+describe the interface so the eval harness can call them without Isaac Sim.
 
 ## Repository map
 
@@ -53,7 +63,7 @@ See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on Git
 |---|-----------|--------|
 | 1 | Repo scaffolding, docs, config, CI | done |
 | 2 | Procedural scene generator | done · writer produces valid, inspectable `.usd` (verified round-trip) |
-| 3 | Isaac Lab extension scaffolding | pending |
+| 3 | Isaac Lab extension scaffolding | done · robot spec, control layers, and TaskRunner runner all import without Isaac Sim; runtime body raises a consistent NotImplementedError until the GPU + Isaac Sim 5.x container |
 | 4 | Data pipeline + storage format | pending |
 | 5 | Training configs (PPO/diffusion/VLA) | pending |
 | 6 | Evaluation harness | done · `hearth-eval` CLI passes smoke test |
