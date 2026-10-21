@@ -71,10 +71,28 @@ See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on Git
 | 2 | Procedural scene generator | done · writer produces valid, inspectable `.usd` (verified round-trip) |
 | 3 | Isaac Lab extension scaffolding | done · robot spec, control layers, and TaskRunner runner all import without Isaac Sim; runtime body raises a consistent NotImplementedError until the GPU + Isaac Sim 5.x container |
 | 4 | Data pipeline + storage format | done · `hearth-data` CLI saves/loads HDF5, Parquet and JSONL; round-trip verified, all tests pass |
-| 5 | Training configs (PPO/diffusion/VLA) | pending |
+| 5 | Training configs (PPO/diffusion/VLA) | done · `hearth/training/` configs + loader + validation, tests pass |
 | 6 | Evaluation harness | done · `hearth-eval` CLI passes smoke test |
-| 7 | Sim-to-real + deployment | pending |
-| 8 | Docker, datasheet, architecture, handover | pending |
+| 7 | Sim-to-real + deployment | done · `hearth/deploy/` calibrators + ROS 2 bridge, tests pass |
+| 8 | Docker, datasheet, architecture, handover | done · `docker/`, `docs/architecture.md`, `docs/handover.md` |
+
+## Docker
+
+    Build the Isaac Sim image and run the humanoid in a container:
+        docker/run.sh build
+        docker/run.sh run
+
+    Run the lightweight tests (no GPU needed):
+        docker/run.sh tests
+
+### CI
+
+    GitHub Actions runs on every push and pull request:
+
+    - **test** — builds the lightweight `tests` image (no Isaac Sim) and runs pytest.
+    - **lint** — runs ruff and mypy on the lightweight code.
+
+    Workflows live in `.github/workflows/`.
 
 ## License
 

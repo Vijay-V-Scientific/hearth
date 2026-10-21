@@ -1,0 +1,36 @@
+# Orchestration for the Isaac Sim 5.x training/eval container.
+#   docker compose -f docker/docker-compose.yml up hearth
+services:
+  hearth:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: hearth:isaac5
+    runtime: nvidia  # uses --gpus all via the nvidia runtime
+    volumes:
+      # Bind-mount the project root so code changes are live without rebuild.
+      - ..:/workspace/projects/hearth
+      # Persistent workspace for scenes, checkpoints, reports.
+      - hearth-workspace:/workspace/work
+    environment:
+      # Set to 1 to run headless (no Omniverse window).
+      - HEADLESS=1
+      - RUST_LOG=warn
+    ipc: host          # required by PhysX / shared-memory
+    devices:
+      - /dev/dri:rwm    # for GPU rendering
+    entrypoint: ["/bin/bash"]
+
+  # Convenience: run the lightweight (no-GPU) test suite.
+  tests:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.tests
+    image: hearth:tests
+    working_dir: /workspace/projects/hearth
+    volumes:
+      - ..:/workspace/projects/hearth
+    entrypoint: ["python", "-m", "pytest", "-q"]
+
+volumes:
+  hearth-workspace:

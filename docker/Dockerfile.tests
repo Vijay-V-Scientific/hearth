@@ -1,0 +1,18 @@
+#===========
+# Lightweight test/dev image — no Isaac Sim, no GPU needed.
+# Builds fast and is used by CI and by `docker compose -f docker/docker-compose.yml up tests`.
+#===========
+FROM python:3.11-slim
+
+# Dev deps only (test/lint/typecheck). Isaac Sim is intentionally absent.
+COPY pyproject.toml requirements*.txt ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -e ".[dev]"
+
+WORKDIR /workspace/projects/hearth
+COPY hearth ./hearth
+COPY configs ./configs
+COPY tests ./tests
+COPY pyproject.toml ./
+
+CMD ["python", "-m", "pytest", "-q"]

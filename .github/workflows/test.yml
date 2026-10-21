@@ -1,0 +1,21 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build tests image
+        run: |
+          cd docker
+          docker build -f Dockerfile.tests -t hearth-tests .
+
+      - name: Run tests
+        run: |
+          docker run --rm hearth-tests python -m pytest -q

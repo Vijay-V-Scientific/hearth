@@ -1,0 +1,10 @@
+# ROS 2 bridge between the VLA planner (Layer 2) and the low-level
+# controller (Layers 0/1) running on the humanoid's onboard compute.
+bridge:
+  topic_planner: /planner/subgoals
+  topic_controller: /controller/subgoals
+  frame_id: base_link
+  message_rate_hz: 5.0
+  timeout_s: 0.5
+qos_profile: reliable
+use_sim_time: false
