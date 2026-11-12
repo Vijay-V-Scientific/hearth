@@ -160,21 +160,22 @@ def _load_hdf5(path: Path) -> list[EpisodeRecord]:
 
 
 def _save_parquet(path: Path, records: Sequence[EpisodeRecord]) -> None:
-    import pandas as pd
+    import pyarrow as pa
+    import pyarrow.parquet as pq
 
     rows = [rec.to_dict() for rec in records]
-    df = pd.DataFrame(rows)
-    df.to_parquet(path, index=False, engine="pyarrow")
+    table = pa.Table.from_pylist(rows) if rows else pa.table({})
+    pq.write_table(table, str(path))
 
 
 def _load_parquet(path: Path) -> list[EpisodeRecord]:
-    import pandas as pd
+    import pyarrow.parquet as pq
 
     from .types import Action, Observation, TaskSignal
 
-    df = pd.read_parquet(path)
+    rows = pq.read_table(str(path)).to_pylist()
     records: list[EpisodeRecord] = []
-    for _, row in df.iterrows():
+    for row in rows:
         obs = [
             Observation(step=int(o["step"]), qpos=o["qpos"], qvel=o["qvel"])
             for o in row["observations"]

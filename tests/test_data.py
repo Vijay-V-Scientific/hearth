@@ -1,5 +1,7 @@
 """Tests for episode storage (HDF5, Parquet, JSONL round-trips)."""
 
+import sys
+
 import numpy as np
 import pytest
 
@@ -90,9 +92,12 @@ def test_storage_format_unknown(tmp_path):
         storage_format(p)
 
 
-def test_hdf5_unavailable(tmp_path):
-    # h5py is not installed in this env; the HDF5 path must raise a clear error.
+def test_hdf5_unavailable(tmp_path, monkeypatch):
+    # Force ``import h5py`` to fail (h5py is a required dependency, so we
+    # cannot rely on it being absent) and assert the HDF5 path surfaces a clear
+    # ImportError rather than crashing in an opaque way.
     rec = _sample_record()
     p = tmp_path / "eps.h5"
+    monkeypatch.setitem(sys.modules, "h5py", None)
     with pytest.raises(ImportError):
         save_episodes(p, [rec], fmt=StorageFormat.HDF5)
