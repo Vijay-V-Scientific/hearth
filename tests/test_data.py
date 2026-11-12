@@ -2,7 +2,6 @@
 
 import sys
 
-import numpy as np
 import pytest
 
 from hearth.data import (
@@ -18,10 +17,7 @@ from hearth.data.storage import load_episodes
 
 
 def _sample_record():
-    obs = [
-        Observation(step=i, qpos=[float(i), 0.1, 0.2], qvel=[0.0, 0.1, 0.2])
-        for i in range(3)
-    ]
+    obs = [Observation(step=i, qpos=[float(i), 0.1, 0.2], qvel=[0.0, 0.1, 0.2]) for i in range(3)]
     actions = [
         Action(step=i, joint_targets=[float(i) / 10.0, 0.05], gripper=float(i) / 3.0)
         for i in range(3)
@@ -101,3 +97,58 @@ def test_hdf5_unavailable(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "h5py", None)
     with pytest.raises(ImportError):
         save_episodes(p, [rec], fmt=StorageFormat.HDF5)
+
+
+def _write_source_jsonl(tmp_path):
+    from hearth.data.storage import save_episodes  # noqa: F401  (only for fmt)
+
+    rec = _sample_record()
+    src = tmp_path / "src.jsonl"
+    src.write_text(__import__("json").dumps(rec.to_dict()) + "\n")
+    return src
+
+
+def test_cli_save_honours_target_extension(tmp_path):
+    """Regression: `save x.jsonl out.parquet` must write real Parquet bytes.
+
+    The CLI used to force HDF5 whenever --fmt was omitted, ignoring the target
+    extension, so a .parquet output actually held HDF5 bytes and failed to load
+    (Parquet magic bytes not found) while `format` misleadingly reported parquet.
+    """
+    from hearth.data.cli import main
+
+    src = _write_source_jsonl(tmp_path)
+
+    parquet_out = tmp_path / "out.parquet"
+    assert main(["save", str(src), str(parquet_out)]) == 0
+    # Real Parquet files start with the "PAR1" magic bytes.
+    assert parquet_out.read_bytes()[:4] == b"PAR1", "not actually Parquet bytes"
+    assert storage_format(parquet_out) == StorageFormat.PARQUET
+    assert len(load_episodes(parquet_out)) == 1  # would raise on HDF5-in-parquet
+
+    jsonl_out = tmp_path / "out.jsonl"
+    assert main(["save", str(src), str(jsonl_out)]) == 0
+    assert jsonl_out.read_text().lstrip().startswith("{")
+    assert load_episodes(jsonl_out)
+
+
+def test_cli_save_defaults_to_hdf5_for_unknown_extension(tmp_path, monkeypatch):
+    """No --fmt and an unrecognised extension => HDF5 (documented fallback)."""
+    pytest.importorskip("h5py")
+    from hearth.data.cli import main
+
+    src = _write_source_jsonl(tmp_path)
+    out = tmp_path / "out.bin"
+    assert main(["save", str(src), str(out)]) == 0
+    # HDF5 magic bytes.
+    assert out.read_bytes()[:4] == b"\x89HDF"
+
+
+def test_cli_save_explicit_fmt_overrides_extension(tmp_path):
+    """--fmt wins over the target extension."""
+    from hearth.data.cli import main
+
+    src = _write_source_jsonl(tmp_path)
+    out = tmp_path / "out.txt"  # odd extension, but --fmt says jsonl
+    assert main(["save", str(src), str(out), "--fmt", "jsonl"]) == 0
+    assert out.read_text().lstrip().startswith("{")

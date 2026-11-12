@@ -10,9 +10,6 @@ Importable without Isaac Sim.
 from __future__ import annotations
 
 import argparse
-import json
-import sys
-from pathlib import Path
 
 from .storage import load_episodes, save_episodes, storage_format
 from .types import StorageFormat
@@ -42,11 +39,19 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def cmd_save(args: argparse.Namespace) -> int:
     records = load_episodes(args.source)
-    target: StorageFormat | None = None
     if args.fmt:
-        target = StorageFormat(args.fmt)
-    out = save_episodes(args.target, records, fmt=target or StorageFormat.HDF5)
-    print(f"Wrote {len(records)} episode(s) to {out} ({storage_format(out).value}).")
+        target: StorageFormat = StorageFormat(args.fmt)
+    else:
+        # Honour the target's extension (as --help promises); fall back to
+        # HDF5 only when the extension is unrecognised. Forcing HDF5 here
+        # ignored the extension, so `save x.jsonl out.parquet` wrote HDF5
+        # bytes into a .parquet file that then failed to load.
+        try:
+            target = storage_format(args.target)
+        except ValueError:
+            target = StorageFormat.HDF5
+    out = save_episodes(args.target, records, fmt=target)
+    print(f"Wrote {len(records)} episode(s) to {out} ({target.value}).")
     return 0
 
 

@@ -54,11 +54,26 @@ describe the interface so the eval harness can call them without Isaac Sim.
 
 ## Quickstart
 
+Requires **Python 3.11 or 3.12** (see `requires-python` in `pyproject.toml`).
+The scene generator, evaluation harness and data pipeline all run on a plain
+CPU box with no Isaac Sim; only the training/rollout path needs the GPU
+container (see Docker below).
+
 ```bash
-python -m pip install -e .            # install the package + deps
-python -m hearth.scene.cli generate --seed 0 --out /tmp/hearth/scene0
-python -m hearth.eval.cli --config configs/eval/benchmark_50.yaml
-python -m hearth.data.cli --config configs/data/episode_schema.yaml
+python -m pip install -e . # package + deps
+
+# 1. Procedural apartment -> a real, inspectable .usd file (note the .usda name)
+python -m hearth.scene.cli generate --seed 0 --out /tmp/hearth/scene0.usda
+
+# 2. Evaluation harness on the 50-task benchmark (mock runner, no GPU needed).
+#    A 5-15 substep task must complete every substep, so use several seeds;
+#    the mock's 50%/substep capability gives a low single-seed success rate.
+python -m hearth.eval.cli run hearth_50 --seeds 0,1,2
+
+# 3. Data pipeline: convert a bundled sample episode, then read it back.
+#    Output format follows the target file's extension (.parquet/.h5/.jsonl).
+python -m hearth.data.cli save examples/episode_sample.jsonl /tmp/episode.parquet
+python -m hearth.data.cli load /tmp/episode.parquet
 ```
 
 ## Milestones
@@ -78,12 +93,17 @@ See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on Git
 
 ## Docker
 
-    Build the Isaac Sim image and run the humanoid in a container:
-        docker/run.sh build
-        docker/run.sh run
+    The Isaac Sim 5.x image auto-builds on first use and bind-mounts the
+    project, so code changes are live without a rebuild:
+        docker compose -f docker/docker-compose.yml build hearth
+        docker compose -f docker/docker-compose.yml up hearth   # headless by default
 
-    Run the lightweight tests (no GPU needed):
-        docker/run.sh tests
+    Or use the convenience wrapper (it forwards its args to the container,
+    with --gpus all):
+        ./docker/run.sh python -m hearth.scene.cli generate --seed 0 --out /tmp/scene0.usda
+
+    Run the lightweight tests (no GPU, no Isaac Sim):
+        docker compose -f docker/docker-compose.yml run --rm tests
 
 ### CI
 
