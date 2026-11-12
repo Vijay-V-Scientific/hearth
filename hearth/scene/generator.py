@@ -75,7 +75,13 @@ def _place_in_room(rng: random.Random, room: RoomConfig,
     for _ in range(max_iter):
         cx = rng.uniform(room.origin_x + sx / 2 + 0.1, room.origin_x + room.size_x - sx / 2 - 0.1)
         cy = rng.uniform(room.origin_y + sy / 2 + 0.1, room.origin_y + room.size_y - sy / 2 - 0.1)
-        if cx < cy:  # degenerate guard
+        # Reject only if the box would spill outside the room bounds or overlap
+        # a placed neighbour. (The old `cx < cy` check was a nonsensical
+        # degenerate guard that randomly discarded ~half of valid placements,
+        # leaving many rooms empty.)
+        if cx < room.origin_x + sx / 2 or cx > room.origin_x + room.size_x - sx / 2:
+            continue
+        if cy < room.origin_y + sy / 2 or cy > room.origin_y + room.size_y - sy / 2:
             continue
         ok = True
         for px, py in placed:
