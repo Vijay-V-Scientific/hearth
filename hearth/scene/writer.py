@@ -15,9 +15,9 @@ helper is a SCAFFOLD integration point (Isaac Sim is not installed here).
 
 from __future__ import annotations
 
-import math
 import os
-from typing import Optional
+from typing import Any
+
 from .types import Scene
 
 # Approximate room surface colours (rgb), for visualisation in usdview.
@@ -38,14 +38,14 @@ def _room_colour(name: str) -> tuple[float, float, float]:
     return _ROOM_COLOURS.get(name, (0.75, 0.75, 0.75))
 
 
-def _make_box(stage, path: str, centre, size, colour) -> "object":
+def _make_box(stage, path: str, centre, size, colour) -> "Any":
     """Define a unit cube given a world-space centre and full extents.
 
     The cube is scaled from a unit (side 1, centred at the local origin) box,
     so ``size`` is the true bounding-box extent and ``centre`` is the world
     position of the box centre. Returns the prim.
     """
-    from pxr import UsdGeom, Gf
+    from pxr import Gf, UsdGeom
 
     cube = UsdGeom.Cube.Define(stage, path)
     cube.CreateSizeAttr(1.0)
@@ -63,7 +63,7 @@ def _make_box(stage, path: str, centre, size, colour) -> "object":
 
 
 def _write_room(stage, room_path, room, colour) -> None:
-    from pxr import UsdGeom, Gf
+    from pxr import Gf, UsdGeom
 
     x0, y0 = room.origin_x, room.origin_y
     w, d, h = room.size_x, room.size_y, room.height
@@ -109,8 +109,13 @@ def _write_object(stage, obj_path, category, config) -> None:
     x, y, z = config.position
     sx, sy, sz = config.size
 
-    box = _make_box(stage, obj_path, (float(x), float(y), float(z)),
-                    (float(sx), float(sy), float(sz)), _OBJECT_DISPLAY)
+    box = _make_box(
+        stage,
+        obj_path,
+        (float(x), float(y), float(z)),
+        (float(sx), float(sy), float(sz)),
+        _OBJECT_DISPLAY,
+    )
 
     prim = box.GetPrim()
     # Category on every object (generic placables included, not just task ones).
@@ -119,6 +124,7 @@ def _write_object(stage, obj_path, category, config) -> None:
     # metadata tag. Applied about the object centre (see _make_box op order).
     if config.orientation_deg:
         from pxr import UsdGeom
+
         ops = UsdGeom.Xformable(box).GetOrderedXformOps()
         for op in ops:
             if op.GetOpType() == UsdGeom.XformOp.TypeRotateZ:
@@ -141,7 +147,7 @@ def write_usd(scene: Scene, path: str) -> str:
     """
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
 
-    from pxr import Usd, UsdGeom, Sdf
+    from pxr import Sdf, Usd, UsdGeom
 
     stage = Usd.Stage.CreateNew(path)
     UsdGeom.SetStageUpAxis(stage, "Z")
@@ -151,9 +157,15 @@ def write_usd(scene: Scene, path: str) -> str:
     root.CreateAttribute("hearth_scene_id", Sdf.ValueTypeNames.String).Set(scene.metadata.scene_id)
     root.CreateAttribute("hearth_seed", Sdf.ValueTypeNames.Int).Set(scene.metadata.seed)
     root.CreateAttribute("hearth_num_rooms", Sdf.ValueTypeNames.Int).Set(scene.metadata.num_rooms)
-    root.CreateAttribute("hearth_total_area_m2", Sdf.ValueTypeNames.Float).Set(scene.metadata.total_area)
-    root.CreateAttribute("hearth_num_objects", Sdf.ValueTypeNames.Int).Set(scene.metadata.num_objects)
-    root.CreateAttribute("hearth_num_task_objects", Sdf.ValueTypeNames.Int).Set(scene.metadata.num_task_objects)
+    root.CreateAttribute("hearth_total_area_m2", Sdf.ValueTypeNames.Float).Set(
+        scene.metadata.total_area
+    )
+    root.CreateAttribute("hearth_num_objects", Sdf.ValueTypeNames.Int).Set(
+        scene.metadata.num_objects
+    )
+    root.CreateAttribute("hearth_num_task_objects", Sdf.ValueTypeNames.Int).Set(
+        scene.metadata.num_task_objects
+    )
 
     stage.DefinePrim("/hearth_scene/rooms")
     for i, room in enumerate(scene.rooms):

@@ -9,12 +9,11 @@ Importable without Isaac Sim.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .benchmark import episode_id_for
-from .types import Benchmark, TaskFamily, TaskResult, BenchmarkResult
+from .types import Benchmark, BenchmarkResult, TaskFamily, TaskResult
 
 
 @dataclass
@@ -55,7 +54,9 @@ def render_markdown(
     lines.append("")
     lines.append(f"- Tasks run: **{result.num_tasks}**")
     lines.append(f"- Success rate: **{result.success_rate() * 100:.1f}%**")
-    lines.append(f"- Benchmark target: {result.metadata.get('target_success_rate', 0.0) * 100:.0f}%")
+    lines.append(
+        f"- Benchmark target: {result.metadata.get('target_success_rate', 0.0) * 100:.0f}%"
+    )
     lines.append("")
 
     # Per-family table.
@@ -68,9 +69,7 @@ def render_markdown(
         if not group:
             continue
         ok = sum(1 for r in group if r.success)
-        lines.append(
-            f"| {family.value} | {len(group)} | {ok / len(group) * 100:.1f}% |"
-        )
+        lines.append(f"| {family.value} | {len(group)} | {ok / len(group) * 100:.1f}% |")
     lines.append("")
 
     # Per-task detail.
@@ -80,13 +79,13 @@ def render_markdown(
     lines.append("| --- | --- | --- | ---: | :---: |")
     for r in result.results:
         t = r.task
+        # build_benchmark_result() -> attach_tasks() guarantees this.
+        assert t is not None, f"task not attached for {r.task_id}"
         status = "✅" if r.success else "❌"
         detail = f"{t.num_substeps}/{t.num_substeps}"
         if not cfg.include_substeps:
             detail = "—"
-        lines.append(
-            f"| `{r.task_id}` | {t.family.value} | {t.difficulty} | {detail} | {status} |"
-        )
+        lines.append(f"| `{r.task_id}` | {t.family.value} | {t.difficulty} | {detail} | {status} |")
     lines.append("")
     return "\n".join(lines)
 
@@ -113,11 +112,12 @@ def render_csv(
     result: BenchmarkResult,
     config: ReportConfig | None = None,
 ) -> str:
-    cfg = config or ReportConfig()
     header = "task_id,policy_id,success,seed,duration_s,family,difficulty,substeps"
     rows = [header]
     for r in result.results:
         t = r.task
+        # build_benchmark_result() -> attach_tasks() guarantees this.
+        assert t is not None, f"task not attached for {r.task_id}"
         row = [
             r.task_id,
             r.policy_id,

@@ -19,7 +19,7 @@ This is the no-model baseline a learned grasp network is scored against.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from hearth.scene.types import ObjectConfig
@@ -36,7 +36,7 @@ class GripperLimits:
         tip_force: Nominal normal force per fingertip (N), for ranking.
     """
 
-    max_aperture: float = 0.085   # ~8.5 cm, typical anthropomorphic hand
+    max_aperture: float = 0.085  # ~8.5 cm, typical anthropomorphic hand
     min_aperture: float = 0.0
     max_depth: float = 0.075
     tip_force: float = 15.0
@@ -44,7 +44,7 @@ class GripperLimits:
 
 # A humanoid hand cannot usefully grasp an object much larger than itself in
 # every axis, nor one smaller than a fingertip.
-_MIN_GRASPABLE = 0.02   # 2 cm
+_MIN_GRASPABLE = 0.02  # 2 cm
 
 
 @dataclass(frozen=True)
@@ -109,7 +109,7 @@ def _antipodal_pairs(
         p1[axis] = cx if axis == 0 else (cy if axis == 1 else cz)
         p1[axis] = center[axis] - dim / 2.0
         p2[axis] = center[axis] + dim / 2.0
-        pairs.append((tuple(p1), tuple(p2), dim))
+        pairs.append(((p1[0], p1[1], p1[2]), (p2[0], p2[1], p2[2]), dim))
     return pairs
 
 
@@ -123,8 +123,8 @@ def generate_grasp_candidates(
     gripper's [min_aperture, max_aperture] range and the fingertips reach the
     contacts within ``max_depth``.
     """
-    center = tuple(obj.position)
-    size = tuple(obj.size)
+    center = obj.position
+    size = obj.size
     candidates: list[GraspCandidate] = []
     for p1, p2, width in _antipodal_pairs(center, size):
         if width < gripper.min_aperture or width > gripper.max_aperture:
@@ -135,15 +135,16 @@ def generate_grasp_candidates(
         depth = width / 2.0 + 0.01
         if depth > gripper.max_depth:
             continue
-        axis = tuple((p2[i] - p1[i]) / max(width, 1e-9) for i in range(3))
+        inv = 1.0 / max(width, 1e-9)
+        axis = (
+            (p2[0] - p1[0]) * inv,
+            (p2[1] - p1[1]) * inv,
+            (p2[2] - p1[2]) * inv,
+        )
         # Normalise a pure-axis vector (one component is +/-1 already).
         norm = math.sqrt(sum(a * a for a in axis)) or 1.0
-        axis = tuple(a / norm for a in axis)
-        candidates.append(
-            GraspCandidate(
-                center=_mid(p1, p2), axis=axis, width=width, depth=depth
-            )
-        )
+        axis = (axis[0] / norm, axis[1] / norm, axis[2] / norm)
+        candidates.append(GraspCandidate(center=_mid(p1, p2), axis=axis, width=width, depth=depth))
     return rank_grasps(candidates, obj)
 
 
@@ -174,7 +175,6 @@ def rank_grasps(
     if not candidates:
         return []
     compact = _compactness(obj)
-    top_z = obj.position[2] + obj.size[2] / 2.0
     scored: list[GraspCandidate] = []
     for c in candidates:
         # Narrower apertures are better: linear in [0, max_aperture].
@@ -185,8 +185,11 @@ def rank_grasps(
         q = max(0.0, min(1.0, q))
         scored.append(
             GraspCandidate(
-                center=c.center, axis=c.axis, width=c.width,
-                depth=c.depth, quality=q,
+                center=c.center,
+                axis=c.axis,
+                width=c.width,
+                depth=c.depth,
+                quality=q,
             )
         )
     scored.sort(key=lambda g: g.quality, reverse=True)

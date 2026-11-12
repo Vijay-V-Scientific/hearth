@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
-import numpy as np
 import yaml
 
 
@@ -57,10 +57,15 @@ class SubgoalMessage:
             return cls(
                 seq=int(data["seq"]),
                 subgoal_type=str(data["subgoal_type"]),
-                position=tuple(float(x) for x in data["position"]),
-                orientation=tuple(float(x) for x in data["orientation"]),
-                grip_width=None if data.get("grip_width") is None
-                else float(data["grip_width"]),
+                # Variable-length at runtime; validate() below enforces 3/4 components.
+                position=cast(
+                    tuple[float, float, float], tuple(float(x) for x in data["position"])
+                ),
+                orientation=cast(
+                    tuple[float, float, float, float],
+                    tuple(float(x) for x in data["orientation"]),
+                ),
+                grip_width=None if data.get("grip_width") is None else float(data["grip_width"]),
                 confidence=float(data.get("confidence", 1.0)),
             )
         except (KeyError, TypeError, ValueError) as exc:
@@ -101,8 +106,13 @@ def build_subgoal_message(
     return SubgoalMessage(
         seq=seq,
         subgoal_type=subgoal_type,
-        position=tuple(float(x) for x in position),
-        orientation=tuple(float(x) for x in orientation),
+        position=(float(position[0]), float(position[1]), float(position[2])),
+        orientation=(
+            float(orientation[0]),
+            float(orientation[1]),
+            float(orientation[2]),
+            float(orientation[3]),
+        ),
         grip_width=grip_width,
         confidence=float(confidence),
     ).validate()
@@ -172,9 +182,7 @@ def load_bridge_config(path: str | Path) -> Ros2BridgeConfig:
         raise BridgeError("'bridge' must be a mapping")
     bridge = BridgeConfig(
         topic_planner=str(bridge_raw.get("topic_planner", "/planner/subgoals")),
-        topic_controller=str(
-            bridge_raw.get("topic_controller", "/controller/subgoals")
-        ),
+        topic_controller=str(bridge_raw.get("topic_controller", "/controller/subgoals")),
         frame_id=str(bridge_raw.get("frame_id", "base_link")),
         message_rate_hz=float(bridge_raw.get("message_rate_hz", 5.0)),
         timeout_s=float(bridge_raw.get("timeout_s", 0.5)),
