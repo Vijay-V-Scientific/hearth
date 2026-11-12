@@ -106,15 +106,19 @@ def write_usd(scene: Scene, path: str) -> str:
     root.CreateAttribute("hearth_num_objects", Sdf.ValueTypeNames.Int).Set(scene.metadata.num_objects)
     root.CreateAttribute("hearth_num_task_objects", Sdf.ValueTypeNames.Int).Set(scene.metadata.num_task_objects)
 
-    rooms_prim = stage.DefinePrim("/hearth_scene/rooms")
-    for room in scene.rooms:
-        room_prim = f"/hearth_scene/rooms/{room.name}"
+    stage.DefinePrim("/hearth_scene/rooms")
+    for i, room in enumerate(scene.rooms):
+        # Unique prim path per room: same-typed rooms (e.g. two "kitchen"s)
+        # would otherwise collide and overwrite each other in the stage.
+        room_prim = f"/hearth_scene/rooms/room_{i}"
         _write_room(stage, room_prim, room, _room_colour(room.name))
 
     objects_prim = stage.DefinePrim("/hearth_scene/objects")
     objects_path = objects_prim.GetPath().pathString
-    for category, obj in scene.objects:
-        obj_path = f"{objects_path}/{category}"
+    for i, (category, obj) in enumerate(scene.objects):
+        # Unique prim path per object: objects of the same category would
+        # otherwise collide (same prim path) and overwrite each other.
+        obj_path = f"{objects_path}/obj_{i}"
         _write_object(stage, obj_path, category, obj)
 
     stage.Save()
