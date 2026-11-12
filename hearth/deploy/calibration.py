@@ -20,7 +20,8 @@ state management are importable and tested without a GPU.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import warnings
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -99,8 +100,15 @@ class MotorLatencyModel:
     def predict(
         self, position_error: float, velocity: float
     ) -> float:
-        """Predict the corrected torque-like command."""
-        delayed_error = position_error - self.gain * velocity * self.latency_s
+        """Predict the corrected torque-like command.
+
+        The fitted form is ``predicted = gain * pos - gain * latency * vel
+        + bias``. ``position_error`` must therefore be scaled by ``gain``
+        as well as ``velocity`` by ``gain * latency_s``.
+        """
+        delayed_error = (
+            self.gain * position_error - self.gain * velocity * self.latency_s
+        )
         return delayed_error + self.bias
 
     def fit(
@@ -145,10 +153,24 @@ class MotorLatencyModel:
         # Solve design @ [gain, gain*latency_s, bias] = measured
         coeffs, _, _, _ = np.linalg.lstsq(design, measured, rcond=None)
         self.gain = float(coeffs[0])
-        # latency_s = (gain*latency_s) / gain; take abs since a delay is
-        # non-negative. Guard against a near-zero gain from a degenerate fit.
+        # latency_s = (gain*latency_s) / gain. A delay is non-negative, so a
+        # negative value signals bad logs or wrong sign conventions: warn and
+        # clamp rather than silently hiding it. Guard against a near-zero gain
+        # from a degenerate fit.
         gain = float(coeffs[0])
-        self.latency_s = float(abs(coeffs[1] / gain)) if abs(gain) > 1e-9 else 0.0
+        if abs(gain) <= 1e-9:
+            self.latency_s = 0.0
+        else:
+            latency = float(coeffs[1] / gain)
+            if latency < 0:
+                warnings.warn(
+                    "fitted motor latency is negative ({:.3e} s); "
+                    "check log sign conventions".format(latency),
+                    UserWarning,
+                )
+                self.latency_s = 0.0
+            else:
+                self.latency_s = latency
         self.bias = float(coeffs[2])
         predicted = design @ coeffs
         residual = float(np.sqrt(np.mean((measured - predicted) ** 2)))
