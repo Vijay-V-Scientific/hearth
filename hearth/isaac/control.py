@@ -104,7 +104,7 @@ class VLAPlanterConfig:
     """
 
     model: str = "hearth_vla_7b"
-    plan_hz: int = 10
+    plan_hz: int = 5
     max_substeps: int = 15
     horizon: int = 128
 
@@ -132,15 +132,31 @@ class ControlLayers:
         self.loco_manip = loco_manip or LocoManipulationConfig()
         self.vla = vla or VLAPlanterConfig()
 
-    def control_hz(self) -> int:
-        """Lowest (fastest) control rate across the layers — the tight loop."""
+    def _layer_hz(self, layer: int) -> float:
+        """Control rate of one layer (objective 6).
 
-        return 500  # Layer 0 locomotion, per brief §Success criteria
+        Layer 0 is the 500 Hz whole-body/locomotion tight loop, layer 1 the
+        50 Hz loco-manipulation controller, layer 2 the VLA planner
+        (``vla.plan_hz``, brief: >= 5 Hz).
+        """
 
-    def plan_hz(self) -> int:
-        """VLA planner rate (brief: >= 5 Hz)."""
+        if layer == 0:
+            return 500.0
+        if layer == 1:
+            return 50.0
+        if layer == 2:
+            return float(self.vla.plan_hz)
+        raise ValueError(f"unknown control layer {layer!r}")
 
-        return self.vla.plan_hz
+    def control_hz(self, layer: int = 0) -> float:
+        """Control rate of ``layer`` (default: the 500 Hz tight loop)."""
+
+        return self._layer_hz(layer)
+
+    def plan_hz(self, layer: int = 2) -> float:
+        """VLA planner rate, i.e. layer 2 (brief: >= 5 Hz)."""
+
+        return self._layer_hz(layer)
 
     def plan(
         self,
