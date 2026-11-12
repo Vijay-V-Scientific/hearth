@@ -34,8 +34,24 @@ Public API (importable without Isaac Sim):
 """
 
 from .robot import HumanoidRobotSpec, ActuatorModel
-from .control import ControlLayers
+from .control import ControlLayers, Subgoal, SubgoalType
 from .runner import IsaacLabRunner, load_scene
+from .planner import SceneSummary, PlanResult, plan_task, plan_many, detect_family
+from .recovery import (
+    Situation,
+    RecoveryResult,
+    FailureType,
+    RecoveryOutcome,
+    recover,
+    classify_failure,
+)
+from .grasp import (
+    GripperLimits,
+    GraspCandidate,
+    generate_grasp_candidates,
+    rank_grasps,
+    best_grasp,
+)
 
 __all__ = [
     "HumanoidRobotSpec",
@@ -43,4 +59,22 @@ __all__ = [
     "ControlLayers",
     "IsaacLabRunner",
     "load_scene",
+    "Subgoal",
+    "SubgoalType",
+    "SceneSummary",
+    "PlanResult",
+    "plan_task",
+    "plan_many",
+    "detect_family",
+    "Situation",
+    "RecoveryResult",
+    "FailureType",
+    "RecoveryOutcome",
+    "recover",
+    "classify_failure",
+    "GripperLimits",
+    "GraspCandidate",
+    "generate_grasp_candidates",
+    "rank_grasps",
+    "best_grasp",
 ]

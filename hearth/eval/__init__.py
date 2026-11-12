@@ -40,6 +40,7 @@ from .results import (
     render_markdown,
     write_report,
 )
+from .baseline import BaselineRunner
 
 __all__ = [
     "Benchmark",
@@ -57,6 +58,7 @@ __all__ = [
     "MockPolicy",
     "MockTaskRunner",
     "TaskRunner",
+    "BaselineRunner",
     "load_benchmark",
     "collect_benchmark_results",
     "ReportConfig",
