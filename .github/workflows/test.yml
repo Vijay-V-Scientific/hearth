@@ -13,8 +13,7 @@ jobs:
 
       - name: Build tests image
         run: |
-          cd docker
-          docker build -f Dockerfile.tests -t hearth-tests .
+          docker build -f docker/Dockerfile.tests -t hearth-tests .
 
       - name: Run tests
         run: |

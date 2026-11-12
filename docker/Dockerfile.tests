@@ -1,18 +1,23 @@
 #===========
 # Lightweight test/dev image — no Isaac Sim, no GPU needed.
 # Builds fast and is used by CI and by `docker compose -f docker/docker-compose.yml up tests`.
+#
+# Build context is the REPO ROOT (so `COPY hearth`, `COPY configs`, ... work):
+#   docker build -f docker/Dockerfile.tests -t hearth-tests .
 #===========
 FROM python:3.11-slim
 
-# Dev deps only (test/lint/typecheck). Isaac Sim is intentionally absent.
-COPY pyproject.toml requirements*.txt ./
+WORKDIR /workspace/projects/hearth
+
+# Declaration + package source first: an editable install (`-e`) imports the
+# package, so the source tree must already be present when pip runs.
+COPY pyproject.toml requirements.txt ./
+COPY hearth ./hearth
+COPY configs ./configs
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -e ".[dev]"
 
-WORKDIR /workspace/projects/hearth
-COPY hearth ./hearth
-COPY configs ./configs
+# Tests last so source/dep caching isn't busted by test edits.
 COPY tests ./tests
-COPY pyproject.toml ./
 
 CMD ["python", "-m", "pytest", "-q"]
