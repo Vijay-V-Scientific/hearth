@@ -79,31 +79,39 @@ def _place_in_room(
     category: str,
     fixed: bool,
     min_spacing: float,
-    placed: list[tuple[float, float]],
+    placed: list[tuple[float, float, float, float]],
 ) -> tuple[float, float, float] | None:
-    """Rejection-sample a centre position in the room, respecting spacing."""
+    """Rejection-sample a floor position in the room for ``category``.
+
+    ``placed`` holds ``(cx, cy, sx, sy)`` boxes. Spacing is size-aware: a
+    candidate is rejected when its box overlaps a placed box or leaves less than
+    ``gap`` metres between their edges. The old check compared centre points
+    against a fixed spacing and ignored object size, so a 2 m sofa could sit on
+    top of a 0.3 m lamp. The returned ``z`` rests the box's base on the floor
+    (``z = sz / 2``) instead of burying half of it with the centre at ground.
+    """
     size, _fixed = _TASK_OBJECTS.get(category, _PLACABLES.get(category, ((0.5, 0.5, 0.5), False)))
-    sx, sy, _ = size
+    sx, sy, sz = size
+    # Required edge-to-edge clearance. ``min_spacing`` still spreads things out,
+    # but capped so large furniture in a small room still finds a spot (an
+    # uncapped gap re-created the old "many rooms empty" failure).
+    gap = min(min_spacing, 0.25)
     max_iter = 200
     for _ in range(max_iter):
         cx = rng.uniform(room.origin_x + sx / 2 + 0.1, room.origin_x + room.size_x - sx / 2 - 0.1)
         cy = rng.uniform(room.origin_y + sy / 2 + 0.1, room.origin_y + room.size_y - sy / 2 - 0.1)
-        # Reject only if the box would spill outside the room bounds or overlap
-        # a placed neighbour. (The old `cx < cy` check was a nonsensical
-        # degenerate guard that randomly discarded ~half of valid placements,
-        # leaving many rooms empty.)
         if cx < room.origin_x + sx / 2 or cx > room.origin_x + room.size_x - sx / 2:
             continue
         if cy < room.origin_y + sy / 2 or cy > room.origin_y + room.size_y - sy / 2:
             continue
         ok = True
-        for px, py in placed:
-            if abs(px - cx) < min_spacing and abs(py - cy) < min_spacing:
+        for px, py, psx, psy in placed:
+            if abs(px - cx) < (sx + psx) / 2 + gap and abs(py - cy) < (sy + psy) / 2 + gap:
                 ok = False
                 break
         if ok:
-            placed.append((cx, cy))
-            return (cx, cy, 0.0)
+            placed.append((cx, cy, sx, sy))
+            return (cx, cy, sz / 2)
     return None
 
 
@@ -156,7 +164,7 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
 
     # 2. Place task-relevant objects first (spread across rooms).
     placed: list[tuple[str, ObjectConfig]] = []
-    placed_xy: list[tuple[float, float]] = []
+    placed_xy: list[tuple[float, float, float, float]] = []
     task_budget = cfg.task_objects_per_scene
     room_i = 0
     while len(placed) < task_budget and rooms:

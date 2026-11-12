@@ -192,3 +192,40 @@ def test_write_usd_object_scale_matches_extent(tmp_path):
         return (m[0][j] ** 2 + m[1][j] ** 2 + m[2][j] ** 2) ** 0.5
 
     assert (colnorm(0), colnorm(1), colnorm(2)) == pytest.approx((0.5, 0.6, 0.7), abs=1e-6)
+
+
+# --- objects rest on the floor, and do not overlap (regression) --------------
+
+
+def test_objects_rest_on_floor_not_half_buried():
+    # Every object used to be returned with its centre at z = 0, so each box sat
+    # half underground. The base (z - sz/2) must now be at ground level.
+    for seed in range(20):
+        s = generate_scene(ApartmentConfig(width=8.0, depth=6.0, seed=seed))
+        for _, o in s.objects:
+            assert o.position[2] == pytest.approx(o.size[2] / 2.0, abs=1e-9)
+
+
+def test_scene_objects_do_not_overlap():
+    # Spacing used to compare centre points against a fixed gap and ignore
+    # object size, so large and small objects piled up. Across many scenes,
+    # axis-aligned boxes (excluding thin floor rugs) must not intersect.
+    for seed in range(50):
+        s = generate_scene(ApartmentConfig(width=8.0, depth=6.0, seed=seed))
+        boxes = [
+            (x, y, z, sx, sy, sz)
+            for _, o in s.objects
+            for (x, y, z) in [o.position]
+            for (sx, sy, sz) in [o.size]
+            if sz > 0.05
+        ]
+        for i in range(len(boxes)):
+            xi, yi, zi, sxi, syi, szi = boxes[i]
+            for j in range(i + 1, len(boxes)):
+                xj, yj, zj, sxj, syj, szj = boxes[j]
+                inter = (
+                    abs(xi - xj) < (sxi + sxj) / 2 - 1e-9
+                    and abs(yi - yj) < (syi + syj) / 2 - 1e-9
+                    and abs(zi - zj) < (szi + szj) / 2 - 1e-9
+                )
+                assert not inter, f"overlap in seed {seed}: {boxes[i]} vs {boxes[j]}"
