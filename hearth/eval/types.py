@@ -182,12 +182,27 @@ class TaskResult:
     episode_id: str
     substeps: list[SubstepResult] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    task: Optional[Task] = None
 
     @property
     def weighted_score(self) -> float:
-        """Fraction of weighted substeps completed successfully."""
-        num = sum(s.weight for s in self.substeps if s.success)
-        return num / self.task.total_weight if hasattr(self, "task") else 0.0
+        """Fraction of weighted substeps completed successfully.
+
+        Weights live on the :class:`Substep` definition (not the result), so
+        the weight of the i-th result is taken from the i-th task substep.
+        """
+        task = getattr(self, "task", None)
+        if task is None:
+            return 0.0
+        total_weight = task.total_weight
+        if total_weight == 0:
+            return 0.0
+        num = 0.0
+        for i, substep in enumerate(task.substeps):
+            result = self.substeps[i] if i < len(self.substeps) else None
+            if result is not None and result.success:
+                num += substep.weight
+        return num / total_weight
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -250,11 +265,17 @@ class BenchmarkResult:
         }
 
 
-class _PlaceholderTask:
+class _PlaceholderTask(Task):
     """Stand-in so TaskResult.total_weight works before attach_tasks()."""
 
     def __init__(self, task_id: str) -> None:
-        self.id = task_id
+        super().__init__(
+            id=task_id,
+            family=TaskFamily.TIDYING,
+            instruction="",
+            substeps=[],
+            difficulty="medium",
+        )
 
 
 def _family_of(task_id: str, index: dict[str, Task]) -> Optional[TaskFamily]:
