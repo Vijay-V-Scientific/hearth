@@ -14,8 +14,8 @@ from .config import (
     LocoManipDiffusionConfig,
     PolicyConfig,
     VlaPlannerConfig,
-    load_policy_config,
     load_all_policy_configs,
+    load_policy_config,
     validate_policy_config,
 )
 

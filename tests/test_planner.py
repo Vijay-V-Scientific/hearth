@@ -13,7 +13,6 @@ from hearth.isaac.planner import (
     plan_task,
 )
 
-
 SCENE = SceneSummary(
     rooms=("kitchen", "bedroom", "living", "hallway"),
     object_locations={"red mug": "kitchen", "laundry basket": "bedroom"},
@@ -75,15 +74,9 @@ def test_fetch_searches_when_object_not_visible():
 
 def test_articulated_emits_open_or_close():
     op = plan_task("Open the cabinet", SCENE, family="articulated")
-    assert any(
-        s.type == SubgoalType.OPEN_ARTICULATED and "open" in s.payload
-        for s in op.subgoals
-    )
+    assert any(s.type == SubgoalType.OPEN_ARTICULATED and "open" in s.payload for s in op.subgoals)
     cl = plan_task("Close the cabinet", SCENE, family="articulated")
-    assert any(
-        s.type == SubgoalType.OPEN_ARTICULATED and "close" in s.payload
-        for s in cl.subgoals
-    )
+    assert any(s.type == SubgoalType.OPEN_ARTICULATED and "close" in s.payload for s in cl.subgoals)
 
 
 def test_planner_is_deterministic():

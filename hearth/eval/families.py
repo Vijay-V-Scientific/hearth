@@ -106,8 +106,7 @@ def build_tasks_from_recipe(
             Task(
                 id=f"{family.value}_{start_id + i:04d}",
                 family=family,
-                instruction=f"[{family.value}] {FAMILY_METRICS[family].description} "
-                f"(task {i + 1})",
+                instruction=f"[{family.value}] {FAMILY_METRICS[family].description} (task {i + 1})",
                 substeps=substeps,
                 difficulty=difficulty,
             )

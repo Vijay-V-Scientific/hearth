@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import argparse
 import sys
-from .types import ApartmentConfig
+
 from .generator import generate_scene
+from .types import ApartmentConfig
 from .writer import write_usd
 
 
@@ -55,13 +56,17 @@ def _cmd_stats(args: argparse.Namespace) -> int:
     cfg = ApartmentConfig(**data)
     scene = generate_scene(cfg)
     md = scene.metadata
-    print(f"Config {args.config}: rooms={md.num_rooms} objects={md.num_objects} "
-          f"task={md.num_task_objects} area={md.total_area:.1f} m^2")
+    print(
+        f"Config {args.config}: rooms={md.num_rooms} objects={md.num_objects} "
+        f"task={md.num_task_objects} area={md.total_area:.1f} m^2"
+    )
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="hearth-scene", description="Procedural apartment scene generator")
+    p = argparse.ArgumentParser(
+        prog="hearth-scene", description="Procedural apartment scene generator"
+    )
     sub = p.add_subparsers(dest="command", required=True)
 
     g = sub.add_parser("generate", help="Generate and write a USD scene")
@@ -74,11 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--out", type=str, default=None)
     g.set_defaults(func=_cmd_generate)
 
-    l = sub.add_parser("list-objects", help="List object categories in a 1-room scene")
-    l.add_argument("--seed", type=int, default=0)
-    l.add_argument("--width", type=float, default=6.0)
-    l.add_argument("--depth", type=float, default=6.0)
-    l.set_defaults(func=_cmd_list_objects)
+    lo = sub.add_parser("list-objects", help="List object categories in a 1-room scene")
+    lo.add_argument("--seed", type=int, default=0)
+    lo.add_argument("--width", type=float, default=6.0)
+    lo.add_argument("--depth", type=float, default=6.0)
+    lo.set_defaults(func=_cmd_list_objects)
 
     s = sub.add_parser("stats", help="Print stats for a scene config YAML")
     s.add_argument("--config", type=str, required=True)

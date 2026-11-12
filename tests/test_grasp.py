@@ -6,13 +6,13 @@ import math
 
 import pytest
 
-from hearth.scene.types import ObjectConfig
 from hearth.isaac.grasp import (
     GripperLimits,
     best_grasp,
     generate_grasp_candidates,
     rank_grasps,
 )
+from hearth.scene.types import ObjectConfig
 
 
 def _obj(category, size, position=(0.0, 0.0, 0.8)):
@@ -37,7 +37,9 @@ def test_smallest_dimension_grasp_preferred():
     # A 4 cm wide box: the 0.04-width grasp must be the best (narrowest).
     best = best_grasp(_obj("remote", (0.04, 0.14, 0.02)))
     assert best is not None
-    assert best.width == pytest.approx(0.02, abs=1e-9) or best.width == pytest.approx(0.04, abs=1e-9)
+    assert best.width == pytest.approx(0.02, abs=1e-9) or best.width == pytest.approx(
+        0.04, abs=1e-9
+    )
     all_widths = [c.width for c in generate_grasp_candidates(_obj("remote", (0.04, 0.14, 0.02)))]
     assert all_widths == sorted(all_widths)  # narrowest first
 

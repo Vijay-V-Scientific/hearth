@@ -11,16 +11,15 @@ validate configs on any machine.
 
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-#-----------
+# -----------
 # Paths
-#-----------
+# -----------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG_DIR = PROJECT_ROOT / "configs" / "training"
@@ -32,9 +31,10 @@ class ConfigError(Exception):
     """Raised when a training config is missing or invalid."""
 
 
-#-----------
+# -----------
 # Config objects
-#-----------
+# -----------
+
 
 @dataclass
 class PolicyConfig:
@@ -131,9 +131,10 @@ class VlaPlannerConfig(PolicyConfig):
         return d
 
 
-#-----------
+# -----------
 # Loaders
-#-----------
+# -----------
+
 
 def _read_yaml(path: Path) -> dict[str, Any]:
     try:
@@ -148,9 +149,7 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
-def load_policy_config(
-    layer: int, config_dir: Path | None = None
-) -> PolicyConfig:
+def load_policy_config(layer: int, config_dir: Path | None = None) -> PolicyConfig:
     """Load the config for a single control layer.
 
     Args:
@@ -241,9 +240,7 @@ def validate_policy_config(
 
     control_rate = raw.get("control_rate_hz")
     if not isinstance(control_rate, int) or control_rate <= 0:
-        raise ConfigError(
-            f"control_rate_hz must be a positive integer in {label}"
-        )
+        raise ConfigError(f"control_rate_hz must be a positive integer in {label}")
 
     objectives = raw.get("objectives", {})
     if not isinstance(objectives, dict) or not objectives:
@@ -253,13 +250,9 @@ def validate_policy_config(
         if not isinstance(key, str):
             raise ConfigError(f"objective key must be a string in {label}")
         if not isinstance(val, (int, float)) or isinstance(val, bool):
-            raise ConfigError(
-                f"objective '{key}' must be a number in {label}"
-            )
+            raise ConfigError(f"objective '{key}' must be a number in {label}")
         if not 0.0 <= float(val) <= 1.0:
-            raise ConfigError(
-                f"objective '{key}' must be in [0, 1] in {label}"
-            )
+            raise ConfigError(f"objective '{key}' must be in [0, 1] in {label}")
         clean_obj[key] = float(val)
 
     if layer == 0:

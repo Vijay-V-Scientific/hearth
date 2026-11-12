@@ -65,9 +65,9 @@ def load_episodes(path: str | Path) -> list[EpisodeRecord]:
     raise ValueError(f"unsupported storage format: {fmt}")
 
 
-#-----------
+# -----------
 # HDF5 (production)
-#-----------
+# -----------
 
 
 def _save_hdf5(path: Path, records: Sequence[EpisodeRecord]) -> None:
@@ -87,12 +87,27 @@ def _save_hdf5(path: Path, records: Sequence[EpisodeRecord]) -> None:
             g.attrs["task"] = rec.task
             g.attrs["seed"] = rec.seed
             g.attrs["dt"] = rec.dt
-            g.create_dataset("observations/step", data=np.array([o.step for o in rec.observations], dtype=np.int32))
-            g.create_dataset("observations/qpos", data=np.array([o.qpos for o in rec.observations], dtype=np.float32))
-            g.create_dataset("observations/qvel", data=np.array([o.qvel for o in rec.observations], dtype=np.float32))
-            g.create_dataset("actions/joint_targets", data=np.array([a.joint_targets for a in rec.actions], dtype=np.float32))
-            g.create_dataset("actions/gripper", data=np.array([a.gripper for a in rec.actions], dtype=np.float32))
+            g.create_dataset(
+                "observations/step",
+                data=np.array([o.step for o in rec.observations], dtype=np.int32),
+            )
+            g.create_dataset(
+                "observations/qpos",
+                data=np.array([o.qpos for o in rec.observations], dtype=np.float32),
+            )
+            g.create_dataset(
+                "observations/qvel",
+                data=np.array([o.qvel for o in rec.observations], dtype=np.float32),
+            )
+            g.create_dataset(
+                "actions/joint_targets",
+                data=np.array([a.joint_targets for a in rec.actions], dtype=np.float32),
+            )
+            g.create_dataset(
+                "actions/gripper", data=np.array([a.gripper for a in rec.actions], dtype=np.float32)
+            )
             from collections import defaultdict
+
             _by_name: dict[str, list[float]] = defaultdict(list)
             for s in rec.signals:
                 _by_name[s.name].append(s.value)
@@ -104,7 +119,6 @@ def _save_hdf5(path: Path, records: Sequence[EpisodeRecord]) -> None:
 
 def _load_hdf5(path: Path) -> list[EpisodeRecord]:
     import h5py
-
     import numpy as np
 
     from .types import Action, Observation, TaskSignal
@@ -136,9 +150,7 @@ def _load_hdf5(path: Path) -> list[EpisodeRecord]:
                 vals = np.asarray(v)[...]
                 for i in range(len(obs_steps)):
                     signals.append(TaskSignal(step=int(obs_steps[i]), name=k, value=float(vals[i])))
-            meta = {
-                k[len("meta_"):]: v for k, v in g.attrs.items() if k.startswith("meta_")
-            }
+            meta = {k[len("meta_") :]: v for k, v in g.attrs.items() if k.startswith("meta_")}
             rec = EpisodeRecord(
                 episode_id=episode_id,
                 robot=str(g.attrs["robot"]),
@@ -154,9 +166,9 @@ def _load_hdf5(path: Path) -> list[EpisodeRecord]:
     return records
 
 
-#-----------
+# -----------
 # Parquet (scaffold)
-#-----------
+# -----------
 
 
 def _save_parquet(path: Path, records: Sequence[EpisodeRecord]) -> None:
@@ -204,9 +216,9 @@ def _load_parquet(path: Path) -> list[EpisodeRecord]:
     return records
 
 
-#-----------
+# -----------
 # JSONL (scaffold)
-#-----------
+# -----------
 
 
 def _save_jsonl(path: Path, records: Sequence[EpisodeRecord]) -> None:
@@ -227,12 +239,17 @@ def _load_jsonl(path: Path) -> list[EpisodeRecord]:
             if not line:
                 continue
             d = json.loads(line)
-            obs = [Observation(step=o["step"], qpos=o["qpos"], qvel=o["qvel"]) for o in d["observations"]]
+            obs = [
+                Observation(step=o["step"], qpos=o["qpos"], qvel=o["qvel"])
+                for o in d["observations"]
+            ]
             actions = [
                 Action(step=a["step"], joint_targets=a["joint_targets"], gripper=a["gripper"])
                 for a in d["actions"]
             ]
-            signals = [TaskSignal(step=s["step"], name=s["name"], value=s["value"]) for s in d["signals"]]
+            signals = [
+                TaskSignal(step=s["step"], name=s["name"], value=s["value"]) for s in d["signals"]
+            ]
             records.append(
                 EpisodeRecord(
                     episode_id=d["episode_id"],

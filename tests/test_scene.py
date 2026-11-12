@@ -2,7 +2,6 @@
 
 import pytest
 
-import hearth.scene as scene
 from hearth.scene import (
     ApartmentConfig,
     generate_scene,
@@ -38,7 +37,8 @@ def test_metadata_counts():
 
 
 def test_fixed_and_movable_flags_match_registry():
-    from hearth.scene.generator import _TASK_OBJECTS, _PLACABLES
+    from hearth.scene.generator import _PLACABLES, _TASK_OBJECTS
+
     cfg = ApartmentConfig(width=8.0, depth=6.0, seed=3)
     s = generate_scene(cfg)
     for cat, obj in s.objects:
@@ -50,14 +50,17 @@ def test_fixed_and_movable_flags_match_registry():
 
 def test_write_usd_roundtrip(tmp_path):
     out = tmp_path / "scenes" / "a.usd"
-    path = write_usd_from_config(ApartmentConfig(width=8.0, depth=6.0, seed=5), str(out))
+    write_usd_from_config(ApartmentConfig(width=8.0, depth=6.0, seed=5), str(out))
     assert out.exists()
     from pxr import Usd
+
     stage = Usd.Stage.Open(str(out))
     root = stage.GetPrimAtPath("/hearth_scene")
     assert root.IsValid()
     assert root.GetAttribute("hearth_scene_id").Get()
-    assert root.GetAttribute("hearth_num_objects").Get() == len(generate_scene(ApartmentConfig(seed=5)).objects)
+    assert root.GetAttribute("hearth_num_objects").Get() == len(
+        generate_scene(ApartmentConfig(seed=5)).objects
+    )
 
 
 def test_write_usd_handles_same_category_objects(tmp_path):
@@ -67,6 +70,7 @@ def test_write_usd_handles_same_category_objects(tmp_path):
     out = tmp_path / "multi.usd"
     write_usd(s, str(out))
     from pxr import Usd
+
     stage = Usd.Stage.Open(str(out))
     # Count object boxes written under /hearth_scene/objects
     objs = stage.GetPrimAtPath("/hearth_scene/objects").GetChildren()
@@ -74,6 +78,7 @@ def test_write_usd_handles_same_category_objects(tmp_path):
 
 
 # --- Reuse-the-same-config determinism (regression) -------------------------
+
 
 def test_reusing_config_object_is_repeatable():
     # The bug: ApartmentConfig stored a live RNG on itself, so calling
@@ -89,8 +94,10 @@ def test_reusing_config_object_is_repeatable():
 
 # --- USD geometry the brief actually needs--
 
+
 def _stage(tmp_path, seed=5):
     from pxr import Usd
+
     out = tmp_path / f"s{seed}.usd"
     write_usd_from_config(ApartmentConfig(width=9.0, depth=7.0, seed=seed), str(out))
     return Usd.Stage.Open(str(out))
@@ -101,6 +108,7 @@ def test_write_usd_positions_objects_not_at_origin(tmp_path):
     # ever applied. Read the local transforms back and require distinct,
     # non-origin placements.
     from pxr import UsdGeom
+
     stage = _stage(tmp_path)
     objs = list(stage.GetPrimAtPath("/hearth_scene/objects").GetChildren())
     assert objs
@@ -116,7 +124,6 @@ def test_write_usd_positions_objects_not_at_origin(tmp_path):
 
 
 def test_write_usd_records_category_on_every_object(tmp_path):
-    from hearth.scene.generator import generate_scene
     stage = _stage(tmp_path)
     objs = list(stage.GetPrimAtPath("/hearth_scene/objects").GetChildren())
     assert objs
@@ -128,7 +135,9 @@ def test_write_usd_records_category_on_every_object(tmp_path):
 def test_write_usd_rooms_have_walls(tmp_path):
     # Rooms used to be a bare floor quad with no enclosure.
     stage = _stage(tmp_path)
-    children = {c.GetName() for c in stage.GetPrimAtPath("/hearth_scene/rooms/room_0").GetChildren()}
+    children = {
+        c.GetName() for c in stage.GetPrimAtPath("/hearth_scene/rooms/room_0").GetChildren()
+    }
     assert "floor" in children
     assert {"wall_north", "wall_south", "wall_east", "wall_west"} <= children
 
@@ -136,11 +145,12 @@ def test_write_usd_rooms_have_walls(tmp_path):
 def test_write_usd_yaw_is_a_real_rotation(tmp_path):
     # orientation_deg used to be recorded but never applied. A 90-degree yaw
     # must rotate the object's local x-axis onto ~+y.
-    from pxr import Gf, Usd, UsdGeom
+    from pxr import Usd, UsdGeom
+
     from hearth.scene.types import ObjectConfig, Scene, SceneMetadata
+
     obj = ObjectConfig("cabinet", (2.0, 1.0, 0.5), (0.4, 0.4, 1.8), orientation_deg=90.0)
-    sc = Scene(rooms=[], objects=[("cabinet", obj)],
-               metadata=SceneMetadata("x", 0, 0, 0.0, 1, 1))
+    sc = Scene(rooms=[], objects=[("cabinet", obj)], metadata=SceneMetadata("x", 0, 0, 0.0, 1, 1))
     out = tmp_path / "yaw.usd"
     write_usd(sc, str(out))
     stage = Usd.Stage.Open(str(out))
@@ -151,9 +161,9 @@ def test_write_usd_yaw_is_a_real_rotation(tmp_path):
     # the diagonal (m[0][0]); a 90-degree yaw moves it onto the y-axis, so
     # m[0][0] goes to zero and |m[1][0]| picks up the full 0.4. Reading the raw
     # entries avoids any convention/scale coupling in the extraction helpers.
-    assert m[0][0] == pytest.approx(0.0, abs=1e-6)        # x-extent no longer along x
-    assert abs(m[1][0]) == pytest.approx(0.4, abs=1e-6)   # ...now along y
-    assert m[2][0] == pytest.approx(0.0, abs=1e-6)        # still flat in z
+    assert m[0][0] == pytest.approx(0.0, abs=1e-6)  # x-extent no longer along x
+    assert abs(m[1][0]) == pytest.approx(0.4, abs=1e-6)  # ...now along y
+    assert m[2][0] == pytest.approx(0.0, abs=1e-6)  # still flat in z
     # The scale factor is preserved under rotation (column norm is invariant).
     colnorm_x = (m[0][0] ** 2 + m[1][0] ** 2 + m[2][0] ** 2) ** 0.5
     assert colnorm_x == pytest.approx(0.4, abs=1e-6)
@@ -162,10 +172,11 @@ def test_write_usd_yaw_is_a_real_rotation(tmp_path):
 def test_write_usd_object_scale_matches_extent(tmp_path):
     # The unit cube must be scaled so its world extents equal the config size.
     from pxr import Usd, UsdGeom
+
     from hearth.scene.types import ObjectConfig, Scene, SceneMetadata
+
     obj = ObjectConfig("box", (3.0, 4.0, 0.25), (0.5, 0.6, 0.7))
-    sc = Scene(rooms=[], objects=[("box", obj)],
-               metadata=SceneMetadata("x", 0, 0, 0.0, 1, 1))
+    sc = Scene(rooms=[], objects=[("box", obj)], metadata=SceneMetadata("x", 0, 0, 0.0, 1, 1))
     out = tmp_path / "scale.usd"
     write_usd(sc, str(out))
     stage = Usd.Stage.Open(str(out))
@@ -176,6 +187,8 @@ def test_write_usd_object_scale_matches_extent(tmp_path):
     m = UsdGeom.Xformable(ch).GetLocalTransformation()
     centre = m.ExtractTranslation()
     assert (centre[0], centre[1], centre[2]) == pytest.approx((3.0, 4.0, 0.25), abs=1e-6)
+
     def colnorm(j):
         return (m[0][j] ** 2 + m[1][j] ** 2 + m[2][j] ** 2) ** 0.5
+
     assert (colnorm(0), colnorm(1), colnorm(2)) == pytest.approx((0.5, 0.6, 0.7), abs=1e-6)

@@ -14,6 +14,24 @@ Public API:
 Importable without Isaac Sim installed.
 """
 
+from .baseline import BaselineRunner
+from .benchmark import (
+    MockPolicy,
+    MockTaskRunner,
+    TaskRunner,
+    collect_benchmark_results,
+    load_benchmark,
+)
+from .families import FAMILY_METRICS, family_metric
+from .results import (
+    ReportConfig,
+    build_benchmark_result,
+    render_csv,
+    render_json,
+    render_markdown,
+    write_report,
+)
+from .tasks import BENCHMARK_BUILDERS, get_builder, validate_benchmark
 from .types import (
     Benchmark,
     BenchmarkResult,
@@ -23,24 +41,6 @@ from .types import (
     TaskFamily,
     TaskResult,
 )
-from .families import FAMILY_METRICS, family_metric
-from .tasks import BENCHMARK_BUILDERS, get_builder, validate_benchmark
-from .benchmark import (
-    MockPolicy,
-    MockTaskRunner,
-    TaskRunner,
-    load_benchmark,
-    collect_benchmark_results,
-)
-from .results import (
-    ReportConfig,
-    build_benchmark_result,
-    render_csv,
-    render_json,
-    render_markdown,
-    write_report,
-)
-from .baseline import BaselineRunner
 
 __all__ = [
     "Benchmark",

@@ -14,16 +14,13 @@ Data flow:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from hearth.eval.benchmark import TaskResult
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, avoids importing isaac at runtime
-    from hearth.eval.types import Task
-    from hearth.isaac.control import ControlLayers
-    from hearth.isaac.robot import HumanoidRobotSpec
+    pass
 
 
 @dataclass
@@ -81,16 +78,14 @@ class IsaacLabRunner:
         runtime; the contract is documented here.
         """
 
-        from isaacsim import SimulationApp  # noqa: F401
         import isaaclab.sim as sim_utils  # noqa: F401
+        from isaacsim import SimulationApp  # noqa: F401
 
         # The real implementation would:
         #   1. start the SimulationApp
         #   2. build a sim_utils.SceneConfiguration pointing at self.scene_usd
         #   3. create sim_utils.create_scene(...) with that config
-        raise NotImplementedError(
-            "Scene loading requires the isaacsim/isaaclab runtime."
-        )
+        raise NotImplementedError("Scene loading requires the isaacsim/isaaclab runtime.")
 
 
 def _require_isaac_runtime() -> None:

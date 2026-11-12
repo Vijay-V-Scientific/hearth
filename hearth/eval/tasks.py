@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .families import build_50_task_benchmark
-from .types import Benchmark, Task, TaskFamily
+from .types import Benchmark, TaskFamily
 
 # Registry of named benchmark builders.
 BENCHMARK_BUILDERS: dict[str, Callable[[], Benchmark]] = {
@@ -24,9 +24,7 @@ BENCHMARK_BUILDERS: dict[str, Callable[[], Benchmark]] = {
 
 def get_builder(name: str) -> Callable[[], Benchmark]:
     if name not in BENCHMARK_BUILDERS:
-        raise KeyError(
-            f"Unknown benchmark '{name}'. Available: {sorted(BENCHMARK_BUILDERS)}"
-        )
+        raise KeyError(f"Unknown benchmark '{name}'. Available: {sorted(BENCHMARK_BUILDERS)}")
     return BENCHMARK_BUILDERS[name]
 
 
@@ -58,9 +56,7 @@ def validate_benchmark(benchmark: Benchmark) -> list[str]:
 
         n = task.num_substeps
         if not (5 <= n <= 15):
-            problems.append(
-                f"task {task.id}: {n} substeps, brief requires 5-15"
-            )
+            problems.append(f"task {task.id}: {n} substeps, brief requires 5-15")
 
     if not benchmark.tasks:
         problems.append("benchmark contains no tasks")

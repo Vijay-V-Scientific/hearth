@@ -27,23 +27,33 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Optional
 
 from hearth.isaac.control import Subgoal, SubgoalType
-
 
 # Tokens that signal which family an instruction belongs to.  Checked in
 # order; first match wins.  Keys are lowercase substrings.
 _FAMILY_CUES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("fetch", ("bring", "fetch", "get me", "hand me", "take to")),
-    ("kitchen", ("dishwasher", "fridge", "groceries", "clear the table",
-                 "load", "microwave", "cup", "plate")),
-    ("articulated", ("open", "close", "drawer", "cabinet", "door",
-                     "switch", "lid")),
-    ("carrying", ("carry", "move the", "transport", "laundry basket",
-                  "box to", "chair to")),
-    ("tidying", ("tidy", "put away", "pick up", "where it belongs",
-                 "clutter", "toy", "book", "clothes")),
+    (
+        "kitchen",
+        (
+            "dishwasher",
+            "fridge",
+            "groceries",
+            "clear the table",
+            "load",
+            "microwave",
+            "cup",
+            "plate",
+        ),
+    ),
+    ("articulated", ("open", "close", "drawer", "cabinet", "door", "switch", "lid")),
+    ("carrying", ("carry", "move the", "transport", "laundry basket", "box to", "chair to")),
+    (
+        "tidying",
+        ("tidy", "put away", "pick up", "where it belongs", "clutter", "toy", "book", "clothes"),
+    ),
 )
 
 # Verbs that, if present, override family cues to a more specific intent.
@@ -137,9 +147,7 @@ def _extract_objects(instruction: str) -> list[str]:
     return kept
 
 
-def _resolve_room(
-    instruction: str, scene: SceneSummary
-) -> Optional[str]:
+def _resolve_room(instruction: str, scene: SceneSummary) -> Optional[str]:
     """Find the first room name the instruction mentions."""
     text = (instruction or "").lower()
     for room in scene.rooms:
@@ -187,33 +195,23 @@ def plan_task(
         subgoals.append(Subgoal(type=SubgoalType.PLACE, payload=f"{name}->{dest}"))
 
     def open_art(name: str, state: str = "open") -> None:
-        subgoals.append(
-            Subgoal(type=SubgoalType.OPEN_ARTICULATED, payload=f"{name}:{state}")
-        )
+        subgoals.append(Subgoal(type=SubgoalType.OPEN_ARTICULATED, payload=f"{name}:{state}"))
 
     if fam == "articulated":
         state = "close" if "close" in instruction.lower() else "open"
         target_room = target_room or "robot"
         nav(target_room)
-        subgoals.append(
-            Subgoal(type=SubgoalType.NAVIGATE, payload=f"approach:{obj}")
-        )
-        subgoals.append(
-            Subgoal(type=SubgoalType.GRASP, payload=f"{obj}-handle")
-        )
+        subgoals.append(Subgoal(type=SubgoalType.NAVIGATE, payload=f"approach:{obj}"))
+        subgoals.append(Subgoal(type=SubgoalType.GRASP, payload=f"{obj}-handle"))
         open_art(obj, state)
         subgoals.append(Subgoal(type=SubgoalType.RETREAT, payload=obj))
 
     elif fam == "fetch":
-        subgoals.append(
-            Subgoal(type=SubgoalType.SEARCH, payload=obj)
-        )
+        subgoals.append(Subgoal(type=SubgoalType.SEARCH, payload=obj))
         loc_room = scene.object_locations.get(obj) or target_room
         nav(loc_room, payload=f"{obj}@{loc_room or 'unknown'}")
         grasp(obj)
-        subgoals.append(
-            Subgoal(type=SubgoalType.CARRY, payload=f"{obj}->requester")
-        )
+        subgoals.append(Subgoal(type=SubgoalType.CARRY, payload=f"{obj}->requester"))
         subgoals.append(
             Subgoal(
                 type=SubgoalType.PLACE,
@@ -260,9 +258,7 @@ def _ensure_min_subgoals(
     padded = list(subgoals)
     insertions = 0
     # add an approach right before the first NAVIGATE->GRASP transition
-    first_grasp = next(
-        (i for i, s in enumerate(padded) if s.type == SubgoalType.GRASP), None
-    )
+    first_grasp = next((i for i, s in enumerate(padded) if s.type == SubgoalType.GRASP), None)
     if first_grasp is not None and insertions < (minimum - len(padded)):
         padded.insert(
             first_grasp,
@@ -270,9 +266,7 @@ def _ensure_min_subgoals(
         )
         insertions += 1
     while len(padded) < minimum:
-        padded.append(
-            Subgoal(type=SubgoalType.STABILIZE, payload=f"settle-{insertions}")
-        )
+        padded.append(Subgoal(type=SubgoalType.STABILIZE, payload=f"settle-{insertions}"))
         insertions += 1
     return padded
 

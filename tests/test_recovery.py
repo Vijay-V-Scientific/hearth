@@ -62,8 +62,8 @@ def test_handled_failures_recover_without_reset(failure):
 def test_dropped_object_strategy_regrasps():
     res = recover(Situation(failure="dropped_object", object_name="cup"))
     types = [s.type for s in res.subgoals]
-    assert SubgoalType.SEARCH in types     # find where it fell
-    assert SubgoalType.GRASP in types      # re-grasp
+    assert SubgoalType.SEARCH in types  # find where it fell
+    assert SubgoalType.GRASP in types  # re-grasp
     assert any("re-grasp" in s.payload for s in res.subgoals)
 
 
@@ -78,8 +78,7 @@ def test_blocked_path_strategy_replans_navigation():
 def test_door_closes_strategy_reopens():
     res = recover(Situation(failure="door_closes", target_object="cabinet"))
     assert any(
-        s.type == SubgoalType.OPEN_ARTICULATED and "cabinet" in s.payload
-        for s in res.subgoals
+        s.type == SubgoalType.OPEN_ARTICULATED and "cabinet" in s.payload for s in res.subgoals
     )
 
 

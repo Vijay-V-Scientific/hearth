@@ -46,9 +46,9 @@ class FailureType(str, Enum):
 class RecoveryOutcome(str, Enum):
     """Result of attempting to recover from one failure."""
 
-    RECOVERED = "recovered"          # strategy emitted, no reset needed
-    NO_ACTION = "no_action"          # nothing was wrong
-    UNHANDLED = "unhandled"          # could not recover -> needs reset
+    RECOVERED = "recovered"  # strategy emitted, no reset needed
+    NO_ACTION = "no_action"  # nothing was wrong
+    UNHANDLED = "unhandled"  # could not recover -> needs reset
 
 
 @dataclass(frozen=True)
@@ -137,9 +137,7 @@ def recover(situation: Situation) -> RecoveryResult:
     failure = classify_failure(situation)
 
     if situation.failure is None:
-        return RecoveryResult(
-            failure=failure, outcome=RecoveryOutcome.NO_ACTION
-        )
+        return RecoveryResult(failure=failure, outcome=RecoveryOutcome.NO_ACTION)
 
     if failure == FailureType.UNKNOWN:
         return RecoveryResult(
@@ -157,7 +155,6 @@ def recover(situation: Situation) -> RecoveryResult:
         )
 
     obj = situation.object_name or "object"
-    room = situation.room
 
     if failure == FailureType.DROPPED_OBJECT:
         # Look for the dropped object, settle base, re-grasp where it fell,
@@ -168,9 +165,7 @@ def recover(situation: Situation) -> RecoveryResult:
             _subgoal(SubgoalType.GRASP, f"re-grasp:{obj}"),
             _subgoal(SubgoalType.CARRY, f"resume-carry:{obj}"),
         ]
-        return RecoveryResult(
-            failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals
-        )
+        return RecoveryResult(failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals)
 
     if failure == FailureType.BLOCKED_PATH:
         # Stop, look around, pick an alternate route, retry navigation.
@@ -180,9 +175,7 @@ def recover(situation: Situation) -> RecoveryResult:
             _subgoal(SubgoalType.STABILIZE, "scan-for-alternate-path"),
             _subgoal(SubgoalType.NAVIGATE, f"alt-route:{dest}", frame="world"),
         ]
-        return RecoveryResult(
-            failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals
-        )
+        return RecoveryResult(failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals)
 
     if failure == FailureType.DOOR_CLOSES:
         # The door swung shut: re-approach the handle, re-open, resume.
@@ -190,13 +183,9 @@ def recover(situation: Situation) -> RecoveryResult:
         subgoals = [
             _subgoal(SubgoalType.NAVIGATE, f"approach:{target}", frame="world"),
             _subgoal(SubgoalType.GRASP, f"{target}-handle"),
-            _subgoal(
-                SubgoalType.OPEN_ARTICULATED, f"{target}:reopen"
-            ),
+            _subgoal(SubgoalType.OPEN_ARTICULATED, f"{target}:reopen"),
         ]
-        return RecoveryResult(
-            failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals
-        )
+        return RecoveryResult(failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals)
 
     # BALANCE_LOSS
     subgoals = [
@@ -204,6 +193,4 @@ def recover(situation: Situation) -> RecoveryResult:
         _subgoal(SubgoalType.RETREAT, "reset-stance"),
         _subgoal(SubgoalType.STABILIZE, "confirm-stable"),
     ]
-    return RecoveryResult(
-        failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals
-    )
+    return RecoveryResult(failure=failure, outcome=RecoveryOutcome.RECOVERED, subgoals=subgoals)

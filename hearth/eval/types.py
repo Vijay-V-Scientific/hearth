@@ -257,9 +257,7 @@ class BenchmarkResult:
             "policy_id": self.policy_id,
             "num_tasks": self.num_tasks,
             "success_rate": round(self.success_rate(), 4),
-            "by_family": {
-                f.value: round(self.rate_by_family(f), 4) for f in TaskFamily
-            },
+            "by_family": {f.value: round(self.rate_by_family(f), 4) for f in TaskFamily},
             "results": [r.to_dict() for r in self.results],
             "metadata": self.metadata,
         }

@@ -65,8 +65,7 @@ class DomainRandomization:
             "mass_scale": float(rng.uniform(*self.mass_scale)),
             "friction_scale": float(rng.uniform(*self.friction_scale)),
             "com_offset": tuple(
-                float(rng.uniform(self.com_offset[0], self.com_offset[1]))
-                for _ in range(3)
+                float(rng.uniform(self.com_offset[0], self.com_offset[1])) for _ in range(3)
             ),
             "lighting": float(rng.uniform(*self.lighting_range)),
             "texture_noise": self.texture_noise,
@@ -97,18 +96,14 @@ class MotorLatencyModel:
     bias: float = 0.0
     fit_residual: float | None = None
 
-    def predict(
-        self, position_error: float, velocity: float
-    ) -> float:
+    def predict(self, position_error: float, velocity: float) -> float:
         """Predict the corrected torque-like command.
 
         The fitted form is ``predicted = gain * pos - gain * latency * vel
         + bias``. ``position_error`` must therefore be scaled by ``gain``
         as well as ``velocity`` by ``gain * latency_s``.
         """
-        delayed_error = (
-            self.gain * position_error - self.gain * velocity * self.latency_s
-        )
+        delayed_error = self.gain * position_error - self.gain * velocity * self.latency_s
         return delayed_error + self.bias
 
     def fit(
@@ -133,16 +128,10 @@ class MotorLatencyModel:
         position_errors = np.asarray(position_errors, dtype=float)
         velocities = np.asarray(velocities, dtype=float)
         measured = np.asarray(measured, dtype=float)
-        if not (
-            position_errors.shape == velocities.shape == measured.shape
-        ):
-            raise CalibrationError(
-                "position_errors, velocities, and measured must share shape"
-            )
+        if not (position_errors.shape == velocities.shape == measured.shape):
+            raise CalibrationError("position_errors, velocities, and measured must share shape")
         if position_errors.size < 2:
-            raise CalibrationError(
-                "need at least two samples to fit the motor latency model"
-            )
+            raise CalibrationError("need at least two samples to fit the motor latency model")
         # predict() returns position_error - gain*velocity*latency_s + bias,
         # i.e. predicted = 1*pos + (-gain*latency_s)*vel + bias. Match the
         # design matrix to that exact form so fit() and predict() agree.
@@ -263,9 +252,7 @@ def compute_domain_randomization(
     return DomainRandomization()
 
 
-def save_calibration_state(
-    state: CalibrationState, path: str | Path
-) -> Path:
+def save_calibration_state(state: CalibrationState, path: str | Path) -> Path:
     """Write a :class:`CalibrationState` to a JSON file."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

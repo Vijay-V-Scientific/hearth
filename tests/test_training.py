@@ -55,8 +55,7 @@ def test_validate_rejects_bad_control_rate():
 def test_validate_rejects_objective_out_of_range():
     with pytest.raises(ConfigError):
         validate_policy_config(
-            {"algorithm": "ppo", "control_rate_hz": 500,
-             "objectives": {"x": 1.5}},
+            {"algorithm": "ppo", "control_rate_hz": 500, "objectives": {"x": 1.5}},
             layer=0,
         )
 

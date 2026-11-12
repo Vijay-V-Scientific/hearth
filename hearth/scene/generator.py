@@ -14,6 +14,7 @@ The geometry is deterministic given a seed.
 from __future__ import annotations
 
 import random
+
 from .types import ApartmentConfig, ObjectConfig, RoomConfig, Scene, SceneMetadata
 
 # Semantic categories with (typical size, fixed) priors. Sizes are in metres.
@@ -37,8 +38,15 @@ _PLACABLES = {
 }
 
 
-def _subdivide(rng: random.Random, x0: float, y0: float, w: float, d: float,
-               depth: int, rooms: list[RoomConfig]) -> None:
+def _subdivide(
+    rng: random.Random,
+    x0: float,
+    y0: float,
+    w: float,
+    d: float,
+    depth: int,
+    rooms: list[RoomConfig],
+) -> None:
     """Recursively split the rectangle [x0,x0+w] x [y0,y0+d] into rooms."""
     if depth <= 0:
         name = rng.choice(_ROOM_TYPES)
@@ -65,9 +73,14 @@ def _subdivide(rng: random.Random, x0: float, y0: float, w: float, d: float,
         _subdivide(rng, x0, cut, w, d - (cut - y0), depth - 1, rooms)
 
 
-def _place_in_room(rng: random.Random, room: RoomConfig,
-                   category: str, fixed: bool,
-                   min_spacing: float, placed: list[tuple[float, float]]) -> tuple[float, float, float] | None:
+def _place_in_room(
+    rng: random.Random,
+    room: RoomConfig,
+    category: str,
+    fixed: bool,
+    min_spacing: float,
+    placed: list[tuple[float, float]],
+) -> tuple[float, float, float] | None:
     """Rejection-sample a centre position in the room, respecting spacing."""
     size, _fixed = _TASK_OBJECTS.get(category, _PLACABLES.get(category, ((0.5, 0.5, 0.5), False)))
     sx, sy, _ = size
@@ -119,10 +132,24 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
         rooms.remove(largest)
         t = rng.uniform(0.3, 0.7)
         cut_x = largest.origin_x + largest.size_x * t
-        rooms.append(RoomConfig(name=rng.choice(_ROOM_TYPES), size_x=cut_x - largest.origin_x,
-                                size_y=largest.size_y, origin_x=largest.origin_x, origin_y=largest.origin_y))
-        rooms.append(RoomConfig(name=rng.choice(_ROOM_TYPES), size_x=largest.size_x - (cut_x - largest.origin_x),
-                                size_y=largest.size_y, origin_x=cut_x, origin_y=largest.origin_y))
+        rooms.append(
+            RoomConfig(
+                name=rng.choice(_ROOM_TYPES),
+                size_x=cut_x - largest.origin_x,
+                size_y=largest.size_y,
+                origin_x=largest.origin_x,
+                origin_y=largest.origin_y,
+            )
+        )
+        rooms.append(
+            RoomConfig(
+                name=rng.choice(_ROOM_TYPES),
+                size_x=largest.size_x - (cut_x - largest.origin_x),
+                size_y=largest.size_y,
+                origin_x=cut_x,
+                origin_y=largest.origin_y,
+            )
+        )
         guard += 1
 
     total_area = cfg.width * cfg.depth
@@ -137,29 +164,47 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
         room_i += 1
         category = rng.choice(list(_TASK_OBJECTS.keys()))
         fixed = _TASK_OBJECTS[category][1]
-        pos = _place_in_room(rng, room, category, fixed,
-                             cfg.min_object_spacing, placed_xy)
+        pos = _place_in_room(rng, room, category, fixed, cfg.min_object_spacing, placed_xy)
         if pos is None:
             continue
         orient = rng.uniform(0, 360) if category in ("drawer", "cabinet") else 0.0
         size = _TASK_OBJECTS[category][0]
-        placed.append((category, ObjectConfig(
-            category=category, position=pos,
-            size=size, orientation_deg=orient, fixed=fixed, task_relevant=True)))
+        placed.append(
+            (
+                category,
+                ObjectConfig(
+                    category=category,
+                    position=pos,
+                    size=size,
+                    orientation_deg=orient,
+                    fixed=fixed,
+                    task_relevant=True,
+                ),
+            )
+        )
 
     # 3. Place generic placables to fill rooms.
     for room in rooms:
         for _ in range(rng.randint(1, 4)):
             category = rng.choice(list(_PLACABLES.keys()))
             fixed = _PLACABLES[category][1]
-            pos = _place_in_room(rng, room, category, fixed,
-                                 cfg.min_object_spacing, placed_xy)
+            pos = _place_in_room(rng, room, category, fixed, cfg.min_object_spacing, placed_xy)
             if pos is None:
                 continue
             size = _PLACABLES[category][0]
-            placed.append((category, ObjectConfig(
-                category=category, position=pos, size=size,
-                orientation_deg=0.0, fixed=fixed, task_relevant=False)))
+            placed.append(
+                (
+                    category,
+                    ObjectConfig(
+                        category=category,
+                        position=pos,
+                        size=size,
+                        orientation_deg=0.0,
+                        fixed=fixed,
+                        task_relevant=False,
+                    ),
+                )
+            )
 
     num_task = sum(1 for _, o in placed if o.task_relevant)
     metadata = SceneMetadata(
