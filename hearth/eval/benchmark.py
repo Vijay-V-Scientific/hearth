@@ -134,16 +134,33 @@ def run_benchmark(
     return runner.run_task(benchmark.tasks[0], seed, policy)
 
 
+def _seed_for(task: Task, index: int, seeds: dict[str | int, int]) -> int:
+    """Resolve the seed for one task.
+
+    ``seeds`` keys are either the task id (str), the 0-based index (int), or
+    the fallback string ``"default"``. Returns 0 when no seed is specified.
+    """
+    if not seeds:
+        return 0
+    if task.id in seeds:
+        return int(seeds[task.id])
+    if index in seeds:
+        return int(seeds[index])
+    if "default" in seeds:
+        return int(seeds["default"])
+    return 0
+
+
 def collect_benchmark_results(
     benchmark: Benchmark,
     runner: TaskRunner,
-    seeds: dict[str, int] | None = None,
+    seeds: dict[str | int, int] | None = None,
     policy: Optional[dict[str, Any]] = None,
 ) -> list[TaskResult]:
     """Run every task in ``benchmark`` and return all results."""
     results: list[TaskResult] = []
-    for task in benchmark.tasks:
-        seed = seeds.get(task.id, 0) if seeds else 0
+    for i, task in enumerate(benchmark.tasks):
+        seed = _seed_for(task, i, seeds or {})
         results.append(runner.run_task(task, seed, policy))
     return results
 

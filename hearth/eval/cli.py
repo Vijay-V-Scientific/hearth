@@ -20,7 +20,6 @@ from .benchmark import (
     collect_benchmark_results,
 )
 from .results import (
-    ReportConfig,
     build_benchmark_result,
     render_csv,
     render_json,
@@ -64,23 +63,46 @@ def _build_parser() -> argparse.ArgumentParser:
     report.add_argument("--format", choices=["md", "json", "csv"], default="md")
     report.add_argument("--out", help="output directory")
 
-    families = sub.add_parser("families", help="list task families and metrics")
+    sub.add_parser("families", help="list task families and metrics")
 
     return p
 
 
-def _parse_seeds(seeds: str) -> dict[str, int]:
-    out: dict[str, int] = {}
+def _parse_seeds(seeds: str) -> dict[str | int, int]:
+    """Parse a ``--seeds`` spec into a per-task mapping.
+
+    Tokens are comma-separated:
+      * ``N``          -> seed N applied to all tasks (the fallback ``default``)
+      * ``i:N``        -> seed N for the task at 0-based index ``i``
+      * ``taskid:N``   -> seed N for the task with the given id
+      * ``lo-hi``      -> seeds lo..hi for consecutive 0-based indices
+    The last integer token becomes the fallback ``default``.
+    """
+    out: dict[str | int, int] = {}
+    default: int | None = None
+    pos = 0
     for tok in seeds.split(","):
         tok = tok.strip()
         if not tok:
             continue
-        if "-" in tok:
+        if ":" in tok:
+            key, val = tok.split(":", 1)
+            v = int(val.strip())
+            out[key.strip()] = v
+            default = v
+        elif "-" in tok:
             lo, hi = tok.split("-", 1)
             for i in range(int(lo), int(hi) + 1):
-                out[f"task_{i}"] = i
+                out[i] = i
+                default = i
+                pos = i + 1
         else:
-            out["default"] = int(tok)
+            v = int(tok)
+            out[pos] = v
+            default = v
+            pos += 1
+    if default is not None:
+        out["default"] = default
     return out
 
 
@@ -103,13 +125,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     benchmark = _load(args.source)
     problems = validate_benchmark(benchmark)
     if problems:
-        print(f"WARNING: benchmark has issues:", file=sys.stderr)
+        print("WARNING: benchmark has issues:", file=sys.stderr)
         for pr in problems:
             print(f"  - {pr}", file=sys.stderr)
 
     runner = _make_runner(args.runner)
     seeds = _parse_seeds(args.seeds)
-    results = collect_benchmark_results(benchmark, runner, seeds=seeds, policy={args.policy})
+    results = collect_benchmark_results(
+        benchmark, runner, seeds=seeds, policy={"name": args.policy}
+    )
     br = build_benchmark_result(benchmark, results, args.policy)
 
     print(f"Ran {br.num_tasks} tasks for policy '{args.policy}'.")
