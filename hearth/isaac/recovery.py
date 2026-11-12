@@ -118,7 +118,7 @@ def classify_failure(situation: Situation) -> FailureType:
         return FailureType.BLOCKED_PATH
     if "door" in tag or "close" in tag:
         return FailureType.DOOR_CLOSES
-    if "fall" in tag or "balance" in tag or "tip" in tag:
+    if "fall" in tag or "fell" in tag or "balance" in tag or "tip" in tag:
         return FailureType.BALANCE_LOSS
     return FailureType.UNKNOWN
 
