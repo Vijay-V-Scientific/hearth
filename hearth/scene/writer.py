@@ -1,9 +1,13 @@
-"""USD writer for generated scenes (DONE — tested; Isaac Sim path is SCAFFOLD).
+"""USD writer for generated scenes (tested; Isaac Sim path is SCAFFOLD).
 
 Writes a self-contained USD stage with:
-    - A room hierarchy (walls/floor/ceiling as simple meshes).
-    - Placed objects as prim boxes with category metadata.
-    - Custom stage attributes for scene metadata (id, seed, areas).
+    - A room hierarchy: a floor slab plus perimeter walls (so rooms are
+      physically bounded, not unbounded quads).
+    - Placed objects as unit cubes given a real translate/rotate/scale Xform,
+      so each object sits at its world position and yaw instead of all piled
+      at the origin.
+    - A ``hearth_category`` string on every object (task-relevant and generic)
+      plus a ``hearth_task_object`` marker on task objects.
 
 The output is valid USD readable by usdview / Isaac Sim. The Isaac Sim import
 helper is a SCAFFOLD integration point (Isaac Sim is not installed here).
@@ -11,6 +15,7 @@ helper is a SCAFFOLD integration point (Isaac Sim is not installed here).
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Optional
 from .types import Scene
@@ -25,9 +30,36 @@ _ROOM_COLOURS = {
     "dining": (0.82, 0.7, 0.6),
 }
 
+_WALL_THICKNESS = 0.1
+_OBJECT_DISPLAY = (0.6, 0.4, 0.2)
+
 
 def _room_colour(name: str) -> tuple[float, float, float]:
     return _ROOM_COLOURS.get(name, (0.75, 0.75, 0.75))
+
+
+def _make_box(stage, path: str, centre, size, colour) -> "object":
+    """Define a unit cube given a world-space centre and full extents.
+
+    The cube is scaled from a unit (side 1, centred at the local origin) box,
+    so ``size`` is the true bounding-box extent and ``centre`` is the world
+    position of the box centre. Returns the prim.
+    """
+    from pxr import UsdGeom, Gf
+
+    cube = UsdGeom.Cube.Define(stage, path)
+    cube.CreateSizeAttr(1.0)
+    cube.CreateDisplayColorAttr([Gf.Vec3f(*colour)])
+
+    xform = UsdGeom.Xformable(cube)
+    xform.ClearXformOpOrder()
+    # Composed as translate * rotate * scale: scale the unit cube to its
+    # extents, yaw it about its own centre, then move the centre to world
+    # position. Listing them translate-first gives that composition.
+    xform.AddTranslateOp().Set(Gf.Vec3d(*centre))
+    xform.AddRotateZOp().Set(0.0)
+    xform.AddScaleOp().Set(Gf.Vec3f(*size))
+    return cube
 
 
 def _write_room(stage, room_path, room, colour) -> None:
@@ -35,7 +67,9 @@ def _write_room(stage, room_path, room, colour) -> None:
 
     x0, y0 = room.origin_x, room.origin_y
     w, d, h = room.size_x, room.size_y, room.height
-    # Floor slab.
+    t = _WALL_THICKNESS
+
+    # Floor slab (planar quad at z = 0).
     floor = UsdGeom.Mesh.Define(stage, f"{room_path}/floor")
     corners = [
         Gf.Vec3f(float(x0), float(y0), 0.0),
@@ -44,10 +78,20 @@ def _write_room(stage, room_path, room, colour) -> None:
         Gf.Vec3f(float(x0), float(y0 + d), 0.0),
     ]
     floor.CreatePointsAttr(corners)
-    # Quad face: four vertices, single quad.
     floor.CreateFaceVertexCountsAttr([4])
     floor.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
     _apply_material(stage, f"{room_path}/floor", colour)
+
+    # Perimeter walls: four thin boxes enclosing the room footprint so the
+    # room is a physically bounded volume rather than a free-floating quad.
+    walls = (
+        ("wall_south", (x0 + w / 2, y0 + t / 2, h / 2), (w, t, h)),
+        ("wall_north", (x0 + w / 2, y0 + d - t / 2, h / 2), (w, t, h)),
+        ("wall_west", (x0 + t / 2, y0 + d / 2, h / 2), (t, d, h)),
+        ("wall_east", (x0 + w - t / 2, y0 + d / 2, h / 2), (t, d, h)),
+    )
+    for name, centre, size in walls:
+        _make_box(stage, f"{room_path}/{name}", centre, size, colour)
 
 
 def _apply_material(stage, prim_path, colour) -> None:
@@ -60,24 +104,29 @@ def _apply_material(stage, prim_path, colour) -> None:
 
 
 def _write_object(stage, obj_path, category, config) -> None:
-    from pxr import UsdGeom, Gf, Sdf
+    from pxr import Sdf
 
     x, y, z = config.position
     sx, sy, sz = config.size
-    box = UsdGeom.Cube.Define(stage, obj_path)
-    box.CreateSizeAttr(max(float(sx), float(sy), float(sz)))
-    box.CreateDisplayColorAttr([Gf.Vec3f(0.6, 0.4, 0.2)])
-    # Tag task-relevant objects.
-    if config.task_relevant:
-        box.GetPrim().CreateAttribute("hearth_task_object", Sdf.ValueTypeNames.String).Set(category)
-    # Optional yaw.
+
+    box = _make_box(stage, obj_path, (float(x), float(y), float(z)),
+                    (float(sx), float(sy), float(sz)), _OBJECT_DISPLAY)
+
+    prim = box.GetPrim()
+    # Category on every object (generic placables included, not just task ones).
+    prim.CreateAttribute("hearth_category", Sdf.ValueTypeNames.String).Set(category)
+    # Real yaw as a rotate op so orientation affects the geometry, not just a
+    # metadata tag. Applied about the object centre (see _make_box op order).
     if config.orientation_deg:
-        import math
-        from pxr import Sdf
-        prim = box.GetPrim()
-        rot = prim.CreateAttribute("hearth_yaw", Sdf.ValueTypeNames.Quatd)
-        theta = math.radians(config.orientation_deg)
-        rot.Set(Gf.Quatd(math.cos(theta / 2), Gf.Vec3d(0, 0, math.sin(theta / 2))))
+        from pxr import UsdGeom
+        ops = UsdGeom.Xformable(box).GetOrderedXformOps()
+        for op in ops:
+            if op.GetOpType() == UsdGeom.XformOp.TypeRotateZ:
+                op.Set(float(config.orientation_deg))
+                break
+    # Task-object marker.
+    if config.task_relevant:
+        prim.CreateAttribute("hearth_task_object", Sdf.ValueTypeNames.String).Set(category)
 
 
 def write_usd(scene: Scene, path: str) -> str:
