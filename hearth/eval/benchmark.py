@@ -70,7 +70,15 @@ class MockTaskRunner:
     def run_task(
         self, task: Task, seed: int, policy: Optional[dict[str, Any]] = None
     ) -> TaskResult:
-        rng = random.Random(seed)
+        # Seed per (task.id, seed), not just seed. Seeding with the bare seed
+        # meant every task ran the identical random sequence, so on a fixed-
+        # seed benchmark run all equal-length tasks shared a success pattern
+        # and the whole 50-task set collapsed (0/50 at cap 0.7). A sha256 of
+        # "task.id:seed" gives each task its own stable stream across processes
+        # (matches BaselineRunner and episode_id_for).
+        rng = random.Random(
+            int.from_bytes(hashlib.sha256(f"{task.id}:{seed}".encode()).digest(), "big")
+        )
         cap = self.policy.capability_for(task.family.value)
 
         substeps: list[SubstepResult] = []
