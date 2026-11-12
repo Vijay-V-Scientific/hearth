@@ -55,6 +55,37 @@ def test_motor_latency_fit_reduces_residual():
     assert model.bias == pytest.approx(true_bias, rel=1e-3)
 
 
+def test_motor_latency_predict_matches_fit_for_gain_not_one():
+    # Regression: predict() must multiply position_error by gain. If it does
+    # not, predictions disagree with the fit whenever gain != 1.
+    rng = np.random.default_rng(1)
+    for true_gain in (0.7, 1.0, 1.3, 1.8):
+        pos = rng.uniform(-0.05, 0.05, 1000)
+        vel = rng.uniform(-1.0, 1.0, 1000)
+        true_lat, true_bias = 0.02, 0.01
+        measured = true_gain * pos - true_gain * true_lat * vel + true_bias
+        model = MotorLatencyModel()
+        model.fit(pos, vel, measured)
+        pred = model.predict(pos, vel)
+        assert np.sqrt(np.mean((measured - pred) ** 2)) < 1e-9
+        assert model.gain == pytest.approx(true_gain, rel=1e-3)
+        assert model.latency_s == pytest.approx(true_lat, rel=1e-3)
+
+
+def test_motor_latency_negative_latency_warns():
+    # A negative fitted latency is a bad log / wrong sign convention: warn and
+    # clamp to 0 rather than silently hiding it.
+    rng = np.random.default_rng(2)
+    pos = rng.uniform(-0.05, 0.05, 1000)
+    vel = rng.uniform(-1.0, 1.0, 1000)
+    true_gain, true_bias = 1.3, 0.01
+    measured = true_gain * pos - true_gain * (-0.02) * vel + true_bias
+    model = MotorLatencyModel()
+    with pytest.warns(UserWarning, match="negative"):
+        model.fit(pos, vel, measured)
+    assert model.latency_s == 0.0
+
+
 def test_motor_latency_requires_shape_match():
     with pytest.raises(CalibrationError):
         MotorLatencyModel().fit(np.zeros(3), np.zeros(2), np.zeros(3))
