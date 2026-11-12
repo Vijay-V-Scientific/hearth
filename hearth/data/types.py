@@ -56,6 +56,12 @@ class Action:
     gripper: list[float] | None = None
     raw: list[float] | None = None
 
+    def __post_init__(self) -> None:
+        for field_name in ("gripper", "raw"):
+            value = getattr(self, field_name)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                setattr(self, field_name, [float(value)])
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "step": self.step,
