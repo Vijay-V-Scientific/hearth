@@ -133,13 +133,69 @@ def test_write_usd_records_category_on_every_object(tmp_path):
 
 
 def test_write_usd_rooms_have_walls(tmp_path):
-    # Rooms used to be a bare floor quad with no enclosure.
+    # Rooms used to be a bare floor quad with no enclosure. Walls are now split
+    # at doorways, so they carry a _<k> suffix; each side must still be present.
     stage = _stage(tmp_path)
     children = {
         c.GetName() for c in stage.GetPrimAtPath("/hearth_scene/rooms/room_0").GetChildren()
     }
     assert "floor" in children
-    assert {"wall_north", "wall_south", "wall_east", "wall_west"} <= children
+    for side in ("wall_north", "wall_south", "wall_east", "wall_west"):
+        assert any(c.startswith(side) for c in children), f"{side} missing"
+
+
+def test_rooms_connect_through_doorways():
+    # Rooms were sealed boxes; a stray "door" box sat in the middle of one and
+    # the robot could never leave a room. Doorways in shared walls must connect
+    # every room to the rest of the apartment.
+    for seed in range(50):
+        s = generate_scene(ApartmentConfig(width=8.0, depth=6.0, room_count=4, seed=seed))
+        n = len(s.rooms)
+        parent = list(range(n))
+
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        for dw in s.doorways:
+            a, b = dw.rooms
+            parent[find(a)] = find(b)
+        assert n == 1 or len({find(i) for i in range(n)}) == 1, f"seed {seed} not connected"
+
+
+def test_write_usd_doorways_are_openings_with_leaves(tmp_path):
+    # A doorway must cut a gap in the wall (so the wall is split into >=2 pieces
+    # where a leaf sits) and a door leaf prim must exist flush in the opening.
+    s = generate_scene(ApartmentConfig(width=8.0, depth=6.0, seed=1))
+    assert s.doorways
+    out = tmp_path / "doors.usd"
+    write_usd(s, str(out))
+    from pxr import Usd
+
+    stage = Usd.Stage.Open(str(out))
+    leaves = []
+    walls = []
+
+    def walk(p):
+        n = p.GetName()
+        if n.startswith("door_"):
+            leaves.append(p)
+        if n.startswith("wall_"):
+            walls.append(p.GetPath().pathString)
+        for c in p.GetChildren():
+            walk(c)
+
+    walk(stage.GetPseudoRoot())
+    # Exactly one leaf per doorway.
+    assert len(leaves) == len(s.doorways)
+    # Each leaf carries the closed/openable marker.
+    for leaf in leaves:
+        assert leaf.HasAttribute("hearth_doorway")
+    # Doorways split walls: far more wall pieces than the 4-per-room a sealed
+    # apartment would have.
+    assert len(walls) > 4 * len(s.rooms)
 
 
 def test_write_usd_yaw_is_a_real_rotation(tmp_path):

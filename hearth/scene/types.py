@@ -29,11 +29,38 @@ class RoomConfig:
 
 
 @dataclass
+class Doorway:
+    """An opening cut into a wall shared by two rooms.
+
+    A doorway is a gap in a wall segment, not a free-standing object. The wall
+    on both sides of the shared edge is drawn in two pieces leaving this opening,
+    and (if ``has_door``) an openable door leaf is placed flush in the opening.
+
+    Attributes:
+        axis: ``"x"`` if the wall's normal is the x-axis (the wall runs along y
+            at a fixed x plane); ``"y"`` if the normal is y (wall runs along x).
+        fixed: The wall-plane coordinate (the x for axis ``"x"``, the y for
+            axis ``"y"``) at metres.
+        along_start, along_end: The opening's extent measured along the wall's
+            long axis, in world metres.
+        rooms: Indices (into ``Scene.rooms``) of the two incident rooms.
+        has_door: Whether a (closed, openable) door leaf fills the opening.
+    """
+
+    axis: str
+    fixed: float
+    along_start: float
+    along_end: float
+    rooms: tuple[int, int]
+    has_door: bool = True
+
+
+@dataclass
 class ObjectConfig:
     """A single placed object with a category and bounding box.
 
     Attributes:
-        category: Semantic category, e.g. "table", "chair", "door".
+        category: Semantic category, e.g. "table", "chair", "drawer".
         position: (x, y, z) centre of the bounding box in world space (metres).
         size: (sx, sy, sz) bounding-box extents in metres.
         orientation_deg: Yaw about the vertical axis, degrees.
@@ -114,3 +141,4 @@ class Scene:
     rooms: List[RoomConfig]
     objects: List[tuple[str, ObjectConfig]]
     metadata: SceneMetadata
+    doorways: List[Doorway] = field(default_factory=list)

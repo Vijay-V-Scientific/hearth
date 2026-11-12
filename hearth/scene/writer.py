@@ -62,8 +62,50 @@ def _make_box(stage, path: str, centre, size, colour) -> "Any":
     return cube
 
 
-def _write_room(stage, room_path, room, colour) -> None:
-    from pxr import Gf, UsdGeom
+def _split_span(lo: float, hi: float, gaps: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Solid ``[lo, hi]`` minus ``gaps`` -> list of solid sub-spans (may be empty)."""
+    gaps = sorted(g for g in gaps if g[1] > lo and g[0] < hi)
+    pieces: list[tuple[float, float]] = []
+    cur = lo
+    for gs, ge in gaps:
+        if gs > cur:
+            pieces.append((cur, gs))
+        cur = max(cur, ge)
+    if cur < hi:
+        pieces.append((cur, hi))
+    return pieces
+
+
+_DOOR_HEIGHT = 2.1
+_DOOR_LEAF_COLOUR = (0.45, 0.3, 0.15)
+
+
+def _wall_gaps_for(doorways, room_index, axis: str, edge: float):
+    """Doorways whose opening lies on this wall plane.
+
+    A doorway's plane coordinate is ``edge`` and its normal axis is ``axis``;
+    its opening runs ``along_start..along_end``. It belongs to this room if the
+    room index is one of the doorway's two incident rooms.
+    """
+    hits = []
+    for dw in doorways:
+        if dw.axis != axis or room_index not in dw.rooms:
+            continue
+        if abs(dw.fixed - edge) > 1e-6:
+            continue
+        hits.append(dw)
+    return hits
+
+
+def _write_room(stage, room_path, room, colour, index, doorways) -> None:
+    """One room: a floor slab plus four walls, each split at its doorways.
+
+    Rooms used to be sealed (four unbroken walls, no openings) and a "door" was
+    a stray box dropped wherever placement put it. Walls are now cut open at
+    real doorways between rooms, and a door leaf is fitted flush in each opening
+    (drawn once per doorway, from the lower-indexed room).
+    """
+    from pxr import Gf, Sdf, UsdGeom
 
     x0, y0 = room.origin_x, room.origin_y
     w, d, h = room.size_x, room.size_y, room.height
@@ -82,16 +124,51 @@ def _write_room(stage, room_path, room, colour) -> None:
     floor.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
     _apply_material(stage, f"{room_path}/floor", colour)
 
-    # Perimeter walls: four thin boxes enclosing the room footprint so the
-    # room is a physically bounded volume rather than a free-floating quad.
-    walls = (
-        ("wall_south", (x0 + w / 2, y0 + t / 2, h / 2), (w, t, h)),
-        ("wall_north", (x0 + w / 2, y0 + d - t / 2, h / 2), (w, t, h)),
-        ("wall_west", (x0 + t / 2, y0 + d / 2, h / 2), (t, d, h)),
-        ("wall_east", (x0 + w - t / 2, y0 + d / 2, h / 2), (t, d, h)),
+    # Each wall: normal axis, the shared-edge plane coordinate, the box centre
+    # along the normal (inset by t/2), and the wall's along-axis span. Walls are
+    # split into solid pieces at every doorway gap and the door leaf drawn in
+    # the opening (only from the lower room index, so a shared wall gets one).
+    wall_defs = (
+        ("wall_south", "y", y0, y0 + t / 2, x0, x0 + w),
+        ("wall_north", "y", y0 + d, y0 + d - t / 2, x0, x0 + w),
+        ("wall_west", "x", x0, x0 + t / 2, y0, y0 + d),
+        ("wall_east", "x", x0 + w, x0 + w - t / 2, y0, y0 + d),
     )
-    for name, centre, size in walls:
-        _make_box(stage, f"{room_path}/{name}", centre, size, colour)
+    for name, axis, edge, center, span_lo, span_hi in wall_defs:
+        dws = _wall_gaps_for(doorways, index, axis, edge)
+        gaps = [(dw.along_start, dw.along_end) for dw in dws]
+        solid = _split_span(span_lo, span_hi, gaps)
+        for k, (a, b) in enumerate(solid):
+            if axis == "y":
+                centre = ((a + b) / 2, center, h / 2)
+                size = (b - a, t, h)
+            else:
+                centre = (center, (a + b) / 2, h / 2)
+                size = (t, b - a, h)
+            _make_box(stage, f"{room_path}/{name}_{k}", centre, size, colour)
+        # Door leaf flush in the opening. Drawn once per doorway, from its
+        # lower room index, so the coincident walls of the two rooms do not
+        # stack two leaves in the same gap.
+        for dw in sorted(dws, key=lambda d: d.along_start):
+            if dw.rooms[0] != index:
+                continue
+            gs, ge = dw.along_start, dw.along_end
+            if axis == "y":
+                centre = ((gs + ge) / 2, center, _DOOR_HEIGHT / 2)
+                size = (ge - gs, t * 0.6, _DOOR_HEIGHT)
+            else:
+                centre = (center, (gs + ge) / 2, _DOOR_HEIGHT / 2)
+                size = (t * 0.6, ge - gs, _DOOR_HEIGHT)
+            leaf = _make_box(
+                stage,
+                f"{room_path}/door_{name}_{int(gs * 1000)}",
+                centre,
+                size,
+                _DOOR_LEAF_COLOUR,
+            )
+            leaf.GetPrim().CreateAttribute("hearth_doorway", Sdf.ValueTypeNames.String).Set(
+                "closed"
+            )
 
 
 def _apply_material(stage, prim_path, colour) -> None:
@@ -172,7 +249,7 @@ def write_usd(scene: Scene, path: str) -> str:
         # Unique prim path per room: same-typed rooms (e.g. two "kitchen"s)
         # would otherwise collide and overwrite each other in the stage.
         room_prim = f"/hearth_scene/rooms/room_{i}"
-        _write_room(stage, room_prim, room, _room_colour(room.name))
+        _write_room(stage, room_prim, room, _room_colour(room.name), i, scene.doorways)
 
     objects_prim = stage.DefinePrim("/hearth_scene/objects")
     objects_path = objects_prim.GetPath().pathString

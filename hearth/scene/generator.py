@@ -15,14 +15,17 @@ from __future__ import annotations
 
 import random
 
-from .types import ApartmentConfig, ObjectConfig, RoomConfig, Scene, SceneMetadata
+from .types import ApartmentConfig, Doorway, ObjectConfig, RoomConfig, Scene, SceneMetadata
 
 # Semantic categories with (typical size, fixed) priors. Sizes are in metres.
 _ROOM_TYPES = ("living", "kitchen", "bedroom", "bathroom", "hallway", "dining")
 
 # Objects that can be task-relevant (hinged/sliding/movable furniture).
+# "door" is NOT a free-standing object here: doors are leaves fitted into the
+# doorways cut into shared room walls (see _generate_doorways). Rooms used to be
+# sealed boxes with a stray box labelled "door" dropped in the middle of one, so
+# the robot could never move between rooms.
 _TASK_OBJECTS = {
-    "door": ((0.08, 0.9, 2.1), True),
     "drawer": ((0.5, 0.4, 0.5), True),
     "cabinet": ((0.6, 0.5, 0.8), True),
     "table": ((1.2, 0.6, 0.75), False),
@@ -113,6 +116,66 @@ def _place_in_room(
             placed.append((cx, cy, sx, sy))
             return (cx, cy, sz / 2)
     return None
+
+
+_DOOR_WIDTH = 0.9
+_DOOR_HEIGHT = 2.1
+_EPS = 1e-6
+
+
+def _shared_boundaries(
+    rooms: list[RoomConfig],
+) -> list[tuple[int, int, str, float, float, float]]:
+    """Shared walls between the BSP rooms (which exactly tile the apartment).
+
+    Returns ``(i, j, axis, fixed, along_lo, along_hi)``: rooms ``i < j`` share a
+    boundary at coordinate ``fixed`` (their x or y edges meet), and their
+    overlap runs from ``along_lo`` to ``along_hi`` along the wall's long axis.
+    ``axis`` is the normal direction (``"x"`` -> wall runs along y, etc.).
+    """
+    out: list[tuple[int, int, str, float, float, float]] = []
+    n = len(rooms)
+    for i in range(n):
+        ri = rooms[i]
+        for j in range(i + 1, n):
+            rj = rooms[j]
+            # Boundary along y (walls run along x).
+            for a, b in ((ri, rj), (rj, ri)):
+                # a's north edge meets b's south edge?
+                if abs((a.origin_y + a.size_y) - b.origin_y) < _EPS:
+                    lo = max(a.origin_x, b.origin_x)
+                    hi = min(a.origin_x + a.size_x, b.origin_x + b.size_x)
+                    if hi - lo > _DOOR_WIDTH:
+                        out.append((i, j, "y", b.origin_y, lo, hi))
+            # Boundary along x (walls run along y).
+            for a, b in ((ri, rj), (rj, ri)):
+                if abs((a.origin_x + a.size_x) - b.origin_x) < _EPS:
+                    lo = max(a.origin_y, b.origin_y)
+                    hi = min(a.origin_y + a.size_y, b.origin_y + b.size_y)
+                    if hi - lo > _DOOR_WIDTH:
+                        out.append((i, j, "x", b.origin_x, lo, hi))
+    return out
+
+
+def _generate_doorways(rooms: list[RoomConfig], rng: random.Random) -> list[Doorway]:
+    """Cut a doorway into every shared wall so rooms are connected.
+
+    A door leaf fills the opening in ``_WALL_THICKNESS``; the opening width is
+    ``_DOOR_WIDTH`` and sits inside the shared overlap (centre-jittered).
+    """
+    doorways: list[Doorway] = []
+    seen: set[tuple[int, int, str, float]] = set()
+    for i, j, axis, fixed, lo, hi in _shared_boundaries(rooms):
+        key = (i, j, axis, round(fixed, 6))
+        if key in seen:
+            continue
+        seen.add(key)
+        # Fit the opening inside [lo, hi] with a small margin, jittered.
+        slack = (hi - lo) - _DOOR_WIDTH - 0.2
+        start = lo + 0.1 + (rng.uniform(0, slack) if slack > 0 else 0.0)
+        end = start + _DOOR_WIDTH
+        doorways.append(Doorway(axis, fixed, start, end, (i, j), has_door=True))
+    return doorways
 
 
 def generate_scene(cfg: ApartmentConfig) -> Scene:
@@ -224,4 +287,5 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
         num_task_objects=num_task,
     )
 
-    return Scene(rooms=rooms, objects=placed, metadata=metadata)
+    doorways = _generate_doorways(rooms, rng)
+    return Scene(rooms=rooms, objects=placed, doorways=doorways, metadata=metadata)
