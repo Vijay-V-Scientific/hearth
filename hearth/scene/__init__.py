@@ -7,17 +7,18 @@ import path is a clean SCAFFOLD integration point (Isaac Sim is not on this box)
 Public API:
     generate_scene(cfg) -> Scene
     write_usd(scene, path) -> None
+    write_usd_from_config(cfg, out_path) -> str
 """
 
+from .generator import generate_scene
 from .types import (
     ApartmentConfig,
-    RoomConfig,
     ObjectConfig,
+    RoomConfig,
     Scene,
     SceneMetadata,
 )
-from .generator import generate_scene
-from .writer import write_usd
+from .writer import write_usd, write_usd_from_config
 
 __all__ = [
     "ApartmentConfig",
@@ -27,4 +28,5 @@ __all__ = [
     "SceneMetadata",
     "generate_scene",
     "write_usd",
+    "write_usd_from_config",
 ]
