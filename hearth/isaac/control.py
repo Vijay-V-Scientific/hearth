@@ -78,7 +78,7 @@ class WholeBodyControlConfig:
     )
     balance_kp: float = 100.0
     balance_kd: float = 20.0
-    contact_filter: tuple[str, ...] = ("ankle_left", "ankle_right")
+    contact_filter: tuple[str, ...] = ("left_ankle_roll_link", "right_ankle_roll_link")
 
 
 @dataclass(frozen=True)
@@ -93,7 +93,7 @@ class LocoManipulationConfig:
     torso_track_gain: float = 5.0
     arm_impedance: tuple[float, float, float] = (300.0, 30.0, 30.0)
     hand_grasp_force_n: float = 20.0
-    contact_filter: tuple[str, ...] = ("ankle_left", "ankle_right")
+    contact_filter: tuple[str, ...] = ("left_ankle_roll_link", "right_ankle_roll_link")
 
 
 @dataclass(frozen=True)
@@ -178,9 +178,7 @@ class ControlLayers:
             raise ValueError("VLA instruction must be a non-empty string")
         if not isinstance(observed_state, dict):
             raise TypeError("observed_state must be a dict of sensor/observation fields")
-        return [
-            Subgoal(type=SubgoalType.FETCH, payload=instruction.strip(), frame="world")
-        ]
+        return [Subgoal(type=SubgoalType.FETCH, payload=instruction.strip(), frame="world")]
 
     def __repr__(self) -> str:  # pragma: no cover - repr only
         return (

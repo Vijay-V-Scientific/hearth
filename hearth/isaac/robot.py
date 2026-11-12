@@ -131,81 +131,154 @@ class HumanoidRobotSpec:
     """
 
     name: str = "unitree_g1"
-    height_m: float = 1.8
-    mass_kg: float = 30.0
-    dof: int = 22
-    base_to_com_m: float = 0.9
+    height_m: float = 1.32
+    mass_kg: float = 35.0
+    dof: int = 23
+    base_to_com_m: float = 0.62
     foot_radius_m: float = 0.08
     joints: tuple[JointSpec, ...] = ()
     hands: tuple[HandSpec, ...] = ()
     actuator: ActuatorModel = field(default_factory=ActuatorModel)
     control_hz: int = 500
     action_space: str = (
-        "22 joint position targets (torso+legs+arms) + 8 hand DoF (right), "
-        "12 DoF loco-manipulation (torso, arms, legs, hands)"
+        "23 joint position targets (12 legs + 1 waist + 10 arms) + "
+        "hand DoF (separate end-effector, not counted in body DoF)"
     )
 
     @classmethod
     def unitree_g1(cls) -> "HumanoidRobotSpec":
-        """Build the default Unitree G1 spec (29 DoF, one dexterous right hand)."""
+        """Build the Unitree G1 body spec (23 DoF, one dexterous right hand).
+
+        The 23 body DoF match Unitree's G1 basic version "total degrees of
+        freedom (excl. end-effector)": 6 per leg (hip pitch/roll/yaw, knee,
+        ankle pitch, ankle roll - both revolute, the ankle is a parallel
+        mechanism driven in PR mode), 1 waist yaw, and 5 per arm (shoulder
+        pitch/roll/yaw, elbow, wrist roll).  Joint limits follow the official
+        G1 developer joint table.  The dexterous hand is an end-effector and is
+        modelled separately via ``hands`` (not counted in the 23 body DoF).
+        Sources: unitree.com/en/g1, support.unitree.com G1 developer guide.
+        """
+
+        def leg(side: str, base: int) -> list[JointSpec]:
+            return [
+                JointSpec(
+                    f"{side}_hip_pitch",
+                    base,
+                    limit_low_rad=-2.53,
+                    limit_high_rad=2.88,
+                    effort_limit=88.0,
+                    velocity_limit=32.0,
+                ),
+                JointSpec(
+                    f"{side}_hip_roll",
+                    base + 1,
+                    limit_low_rad=-0.5236,
+                    limit_high_rad=0.5236,
+                    effort_limit=139.0,
+                    velocity_limit=20.0,
+                ),
+                JointSpec(
+                    f"{side}_hip_yaw",
+                    base + 2,
+                    limit_low_rad=-2.7576,
+                    limit_high_rad=2.7576,
+                    effort_limit=88.0,
+                    velocity_limit=32.0,
+                ),
+                JointSpec(
+                    f"{side}_knee",
+                    base + 3,
+                    limit_low_rad=-0.087267,
+                    limit_high_rad=2.8798,
+                    effort_limit=139.0,
+                    velocity_limit=20.0,
+                ),
+                JointSpec(
+                    f"{side}_ankle_pitch",
+                    base + 4,
+                    limit_low_rad=-0.87267,
+                    limit_high_rad=0.5236,
+                    effort_limit=35.0,
+                    velocity_limit=37.0,
+                ),
+                JointSpec(
+                    f"{side}_ankle_roll",
+                    base + 5,
+                    limit_low_rad=-0.2618,
+                    limit_high_rad=0.2618,
+                    effort_limit=35.0,
+                    velocity_limit=37.0,
+                ),
+            ]
+
+        def arm(side: str, base: int) -> list[JointSpec]:
+            return [
+                JointSpec(
+                    f"{side}_shoulder_pitch",
+                    base,
+                    limit_low_rad=-3.0892,
+                    limit_high_rad=2.6704,
+                    effort_limit=25.0,
+                    velocity_limit=37.0,
+                ),
+                JointSpec(
+                    f"{side}_shoulder_roll",
+                    base + 1,
+                    limit_low_rad=-1.5882,
+                    limit_high_rad=2.2515,
+                    effort_limit=25.0,
+                    velocity_limit=37.0,
+                ),
+                JointSpec(
+                    f"{side}_shoulder_yaw",
+                    base + 2,
+                    limit_low_rad=-2.618,
+                    limit_high_rad=2.618,
+                    effort_limit=25.0,
+                    velocity_limit=37.0,
+                ),
+                JointSpec(
+                    f"{side}_elbow",
+                    base + 3,
+                    limit_low_rad=-1.0472,
+                    limit_high_rad=2.0944,
+                    effort_limit=25.0,
+                    velocity_limit=37.0,
+                ),
+                JointSpec(
+                    f"{side}_wrist_roll",
+                    base + 4,
+                    limit_low_rad=-1.9722,
+                    limit_high_rad=1.9722,
+                    effort_limit=25.0,
+                    velocity_limit=37.0,
+                ),
+            ]
+
+        joints: list[JointSpec] = []
+        joints += leg("left", 0)
+        joints += leg("right", 6)
+        joints.append(
+            JointSpec(
+                "waist_yaw",
+                12,
+                limit_low_rad=-2.618,
+                limit_high_rad=2.618,
+                effort_limit=35.0,
+                velocity_limit=32.0,
+            )
+        )
+        joints += arm("left", 13)
+        joints += arm("right", 18)
 
         return cls(
             name="unitree_g1",
-            height_m=1.8,
-            mass_kg=30.0,
-            dof=22,
-            base_to_com_m=0.9,
+            height_m=1.32,
+            mass_kg=35.0,
+            dof=len(joints),
+            base_to_com_m=0.62,
             foot_radius_m=0.08,
-            joints=(
-                JointSpec("left_hip_yaw", 0, limit_low_rad=-0.43, limit_high_rad=0.43,
-                          effort_limit=144.0, velocity_limit=20.0),
-                JointSpec("left_hip_roll", 1, limit_low_rad=-0.21, limit_high_rad=0.21,
-                          effort_limit=144.0, velocity_limit=20.0),
-                JointSpec("left_hip_pitch", 2, limit_low_rad=-0.52, limit_high_rad=2.36,
-                          effort_limit=144.0, velocity_limit=20.0),
-                JointSpec("left_knee", 3, limit_low_rad=-2.36, limit_high_rad=0.8,
-                          effort_limit=216.0, velocity_limit=13.0),
-                JointSpec("ankle_left", 4, joint_type="prismatic", limit_low_rad=-0.52,
-                          limit_high_rad=0.52, effort_limit=30.0, velocity_limit=25.0),
-                JointSpec("right_hip_yaw", 5, limit_low_rad=-0.43, limit_high_rad=0.43,
-                          effort_limit=144.0, velocity_limit=20.0),
-                JointSpec("right_hip_roll", 6, limit_low_rad=-0.21, limit_high_rad=0.21,
-                          effort_limit=144.0, velocity_limit=20.0),
-                JointSpec("right_hip_pitch", 7, limit_low_rad=-0.52, limit_high_rad=2.36,
-                          effort_limit=144.0, velocity_limit=20.0),
-                JointSpec("right_knee", 8, limit_low_rad=-2.36, limit_high_rad=0.8,
-                          effort_limit=216.0, velocity_limit=13.0),
-                JointSpec("ankle_right", 9, joint_type="prismatic", limit_low_rad=-0.52,
-                          limit_high_rad=0.52, effort_limit=30.0, velocity_limit=25.0),
-                JointSpec("torso", 10, limit_low_rad=-0.52, limit_high_rad=0.52,
-                          effort_limit=144.0, velocity_limit=20.0),
-                JointSpec("left_shoulder_pitch", 11, limit_low_rad=-1.57, limit_high_rad=1.57,
-                          effort_limit=44.0, velocity_limit=20.0),
-                JointSpec("left_shoulder_roll", 12, limit_low_rad=-1.57, limit_high_rad=1.57,
-                          effort_limit=44.0, velocity_limit=20.0),
-                JointSpec("left_elbow", 13, limit_low_rad=-0.21, limit_high_rad=2.61,
-                          effort_limit=44.0, velocity_limit=20.0),
-                JointSpec("right_shoulder_pitch", 14, limit_low_rad=-1.57, limit_high_rad=1.57,
-                          effort_limit=44.0, velocity_limit=20.0),
-                JointSpec("right_shoulder_roll", 15, limit_low_rad=-1.57, limit_high_rad=1.57,
-                          effort_limit=44.0, velocity_limit=20.0),
-                JointSpec("right_elbow", 16, limit_low_rad=-0.21, limit_high_rad=2.61,
-                          effort_limit=44.0, velocity_limit=20.0),
-                # Dexterous right hand: 4 DoF per finger x 5 fingers = 20, but
-                # G1 ships with a 2-DoF parallel gripper by default.  The
-                # dexterous hand is the week-2 selection; this spec models the
-                # underactuated 5-finger variant (8 usable DoF shown below).
-                JointSpec("right_hand_thumb", 17, joint_type="prismatic", limit_low_rad=-0.26,
-                          limit_high_rad=0.26, effort_limit=6.0, velocity_limit=50.0),
-                JointSpec("right_hand_index", 18, joint_type="prismatic", limit_low_rad=-0.47,
-                          limit_high_rad=0.47, effort_limit=6.0, velocity_limit=50.0),
-                JointSpec("right_hand_middle", 19, joint_type="prismatic", limit_low_rad=-0.47,
-                          limit_high_rad=0.47, effort_limit=6.0, velocity_limit=50.0),
-                JointSpec("right_hand_ring", 20, joint_type="prismatic", limit_low_rad=-0.47,
-                          limit_high_rad=0.47, effort_limit=6.0, velocity_limit=50.0),
-                JointSpec("right_hand_pinky", 21, joint_type="prismatic", limit_low_rad=-0.47,
-                          limit_high_rad=0.47, effort_limit=6.0, velocity_limit=50.0),
-            ),
+            joints=tuple(joints),
             hands=(
                 HandSpec("right", finger_count=5, dof_per_finger=4, grasp_mode="underactuated"),
             ),
@@ -221,40 +294,71 @@ class HumanoidRobotSpec:
         ``dof`` always equals ``len(joints)`` (the invariant the tests check).
         """
 
-        leg_joints = (
-            "hip_yaw", "hip_roll", "hip_pitch", "knee", "ankle_pitch", "ankle_roll"
-        )
+        leg_joints = ("hip_yaw", "hip_roll", "hip_pitch", "knee", "ankle_pitch", "ankle_roll")
         arm_joints = (
-            "shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow",
-            "wrist_roll", "wrist_pitch", "wrist_yaw",
+            "shoulder_pitch",
+            "shoulder_roll",
+            "shoulder_yaw",
+            "elbow",
+            "wrist_roll",
+            "wrist_pitch",
+            "wrist_yaw",
         )
         joints: list[JointSpec] = []
         idx = 0
         for side in ("left", "right"):
             for name in leg_joints:
-                joints.append(JointSpec(f"{side}_{name}", idx,
- limit_low_rad=-2.36, limit_high_rad=2.36,
- effort_limit=200.0, velocity_limit=20.0))
+                joints.append(
+                    JointSpec(
+                        f"{side}_{name}",
+                        idx,
+                        limit_low_rad=-2.36,
+                        limit_high_rad=2.36,
+                        effort_limit=200.0,
+                        velocity_limit=20.0,
+                    )
+                )
                 idx += 1
-        joints.append(JointSpec("torso", idx, limit_low_rad=-0.52,
-                                limit_high_rad=0.52, effort_limit=200.0,
-                                velocity_limit=20.0))
+        joints.append(
+            JointSpec(
+                "torso",
+                idx,
+                limit_low_rad=-0.52,
+                limit_high_rad=0.52,
+                effort_limit=200.0,
+                velocity_limit=20.0,
+            )
+        )
         idx += 1
         for side in ("left", "right"):
             for name in arm_joints:
                 jt = "prismatic" if name.startswith("wrist") else "revolute"
-                joints.append(JointSpec(f"{side}_{name}", idx,
- joint_type=jt,
- limit_low_rad=-2.0, limit_high_rad=2.0,
- effort_limit=100.0, velocity_limit=20.0))
+                joints.append(
+                    JointSpec(
+                        f"{side}_{name}",
+                        idx,
+                        joint_type=jt,
+                        limit_low_rad=-2.0,
+                        limit_high_rad=2.0,
+                        effort_limit=100.0,
+                        velocity_limit=20.0,
+                    )
+                )
                 idx += 1
         # 5 fingers x 2 hands, underactuated prismatic contact DoF.
         for side in ("left", "right"):
             for finger in ("thumb", "index", "middle", "ring", "pinky"):
-                joints.append(JointSpec(f"{side}_hand_{finger}", idx,
- joint_type="prismatic",
- limit_low_rad=-0.47, limit_high_rad=0.47,
- effort_limit=6.0, velocity_limit=50.0))
+                joints.append(
+                    JointSpec(
+                        f"{side}_hand_{finger}",
+                        idx,
+                        joint_type="prismatic",
+                        limit_low_rad=-0.47,
+                        limit_high_rad=0.47,
+                        effort_limit=6.0,
+                        velocity_limit=50.0,
+                    )
+                )
                 idx += 1
         return cls(
             name="fourier_gr1",
@@ -265,10 +369,8 @@ class HumanoidRobotSpec:
             foot_radius_m=0.09,
             joints=tuple(joints),
             hands=(
-                HandSpec("left", finger_count=5, dof_per_finger=4,
-                         grasp_mode="underactuated"),
-                HandSpec("right", finger_count=5, dof_per_finger=4,
-                         grasp_mode="underactuated"),
+                HandSpec("left", finger_count=5, dof_per_finger=4, grasp_mode="underactuated"),
+                HandSpec("right", finger_count=5, dof_per_finger=4, grasp_mode="underactuated"),
             ),
             control_hz=500,
         )
@@ -291,7 +393,7 @@ class HumanoidRobotSpec:
     def contact_bodies(self) -> tuple[str, ...]:
         """Bodies whose contact forces are used for contact filtering."""
 
-        return ("ankle_left", "ankle_right")
+        return ("left_ankle_roll_link", "right_ankle_roll_link")
 
     def state(self) -> dict[str, object]:
         """Serialisable description for config / checkpoint metadata."""
