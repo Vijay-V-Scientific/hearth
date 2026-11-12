@@ -25,8 +25,12 @@ class SubgoalType(str, Enum):
     NAVIGATE = "navigate"
     OPEN_ARTICULATED = "open_articulated"
     GRASP = "grasp"
+    PLACE = "place"
     CARRY = "carry"
     FETCH = "fetch"
+    SEARCH = "search"
+    RETREAT = "retreat"
+    STABILIZE = "stabilize"
 
 
 @dataclass(frozen=True)
