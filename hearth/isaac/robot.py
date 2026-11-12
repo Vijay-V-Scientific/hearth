@@ -120,7 +120,7 @@ class HumanoidRobotSpec:
         name: Vendor/model identifier.
         height_m: Standing height in metres (brief: 1.3–1.8 m).
         mass_kg: Standing mass in kg (brief: 25–45 kg).
-        dof: Total actuated degrees of freedom (brief: 25–45).
+        dof: Total actuated degrees of freedom (matches ``len(joints)``).
         base_to_com_m: Base-to-centre-of-mass height.
         foot_radius_m: Equivalent foot contact radius for contact filtering.
         joints: Ordered joint specs (index-aligned with ``dof``).
@@ -133,7 +133,7 @@ class HumanoidRobotSpec:
     name: str = "unitree_g1"
     height_m: float = 1.8
     mass_kg: float = 30.0
-    dof: int = 29
+    dof: int = 22
     base_to_com_m: float = 0.9
     foot_radius_m: float = 0.08
     joints: tuple[JointSpec, ...] = ()
@@ -141,7 +141,7 @@ class HumanoidRobotSpec:
     actuator: ActuatorModel = field(default_factory=ActuatorModel)
     control_hz: int = 500
     action_space: str = (
-        "29 joint position targets (torso+legs+arms) + 8 hand DoF (right), "
+        "22 joint position targets (torso+legs+arms) + 8 hand DoF (right), "
         "12 DoF loco-manipulation (torso, arms, legs, hands)"
     )
 
@@ -153,7 +153,7 @@ class HumanoidRobotSpec:
             name="unitree_g1",
             height_m=1.8,
             mass_kg=30.0,
-            dof=29,
+            dof=22,
             base_to_com_m=0.9,
             foot_radius_m=0.08,
             joints=(
