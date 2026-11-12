@@ -1,0 +1,25 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build lint image
+        run: |
+          cd docker
+          docker build -f Dockerfile.tests -t hearth-lint .
+
+      - name: Run ruff
+        run: |
+          docker run --rm hearth-lint ruff check hearth
+
+      - name: Run mypy
+        run: |
+          docker run --rm hearth-lint mypy hearth

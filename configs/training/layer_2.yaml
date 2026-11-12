@@ -1,0 +1,34 @@
+# Layer 2 — Vision-Language-Action (VLA) planner (5-10 Hz)
+# Success criterion 4: long-horizon tasks from natural language
+name: hearth-vla-planner
+layer: 2
+algorithm: vla
+control_rate_hz: 1000
+objectives:
+  locomotion: 1.0
+  loco_manipulation: 0.9
+  dexterous_grasping: 0.85
+  long_horizon_tasks: 0.7
+  recovery: 0.8
+notes: |
+  Instruction -> sub-goal planner at >=5 Hz on onboard compute.
+  - 70% success on 50 benchmark tasks of 5-15 sub-steps
+  - Emits Subgoal poses consumed by Layer 1/0
+  - Search behavior when target object not in view
+model_name: hearth-vla-7b
+subgoal_rate_hz: 5
+context_window: 4096
+use_language_encoder: true
+action_horizon: 16
+seed: 0
+train:
+  batch_size: 128
+  epochs: 40
+  learning_rate: 1.0e-5
+  weight_decay: 0.05
+  device: cuda
+  checkpoint_interval: 5
+eval:
+  num_episodes: 200
+  report_substeps: true
+  report_metadata: true

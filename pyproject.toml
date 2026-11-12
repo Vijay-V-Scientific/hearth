@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hearth"
+version = "0.1.0"
+description = "Project HEARTH: humanoid household-manipulation research stack (sim-trained, hardware-transferred)."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "Proprietary" }
+authors = [{ name = "Vijay V", email = "vijay.v.scientific@gmail.com" }]
+keywords = ["robotics", "reinforcement-learning", "humanoid", "isaac-sim", "sim2real"]
+dependencies = [
+    # Core numeric
+    "numpy>=1.26,<2.2",
+    "scipy>=1.12",
+    "sympy>=1.12",
+    # Data / I/O
+    "h5py>=3.11",
+    "pyyaml>=6.0",
+    "jsonschema>=4.20",
+    "tqdm>=4.66",
+    "loguru>=0.7",
+    # ML (lightweight; torch installed separately for the right CUDA build)
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "jax[cpu]>=0.4.30",
+    # viz (cpu-only)
+    "matplotlib>=3.9",
+]
+
+[project.optional-dependencies]
+# Heavy / optional: only install in the Isaac Sim container.
+isaac = [
+    "isaacsim>=5.0",
+    "isaaclab>=0.3",
+]
+# Optional: ROS2 bridge (no real ROS2 package here — see hearth/deploy/ros2_bridge.py).
+ros2 = []
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.scripts]
+hearth-scene = "hearth.scene.cli:main"
+hearth-eval = "hearth.eval.cli:main"
+hearth-data = "hearth.data.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hearth*"]
+
+[tool.setuptools.package-data]
+hearth = ["**/*.yaml", "**/*.yml", "**/*.json", "**/*.usd"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
