@@ -20,6 +20,7 @@ Everything runs on a CPU host with no Isaac Sim.
 
 from __future__ import annotations
 
+import hashlib
 import random
 from typing import Any, Optional
 
@@ -80,9 +81,7 @@ class BaselineRunner:
         self.scene = scene or SceneSummary()
         self.name = name
 
-    def _attempt(
-        self, subgoal_type: str, rng: random.Random
-    ) -> tuple[bool, bool]:
+    def _attempt(self, subgoal_type: str, rng: random.Random) -> tuple[bool, bool]:
         """Try one sub-goal once; if it fails, try recovery. -> (ok, recovered)."""
         ok = rng.random() < self.priors.get(subgoal_type, 0.5)
         if ok:
@@ -102,10 +101,17 @@ class BaselineRunner:
     def run_task(
         self, task: Task, seed: int, policy: Optional[dict[str, Any]] = None
     ) -> TaskResult:
-        rng = random.Random(hash((task.id, seed)) & 0xFFFFFFFF)
-        plan = plan_task(
-            task.instruction, self.scene, family=task.family.value
+        # Stable seed derived from (task.id, seed).  The built-in hash() is
+        # process-randomised by PYTHONHASHSEED, so this must NOT use it: an
+        # earlier version did (hash(...) & 0xFFFFFFFF) and the baseline was
+        # reproducible only within a single process - the 50-task success rate
+        # swung 27/31/33 across PYTHONHASHSEED values.  A cryptographic digest
+        # is stable across processes and platforms (matches episode_id_for in
+        # benchmark.py).
+        rng = random.Random(
+            int.from_bytes(hashlib.sha256(f"{task.id}:{seed}".encode()).digest(), "big")
         )
+        plan = plan_task(task.instruction, self.scene, family=task.family.value)
 
         substeps: list[SubstepResult] = []
         task_ok = True
