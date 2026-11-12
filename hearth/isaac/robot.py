@@ -212,6 +212,73 @@ class HumanoidRobotSpec:
             control_hz=500,
         )
 
+    @classmethod
+    def fourier_gr1(cls) -> "HumanoidRobotSpec":
+        """Build a Fourier GR-1 spec (37 DoF, two underactuated hands).
+
+        A second candidate platform from the brief. The GR-1 has more joints
+        than the G1; the joint tree is generated programmatically so that
+        ``dof`` always equals ``len(joints)`` (the invariant the tests check).
+        """
+
+        leg_joints = (
+            "hip_yaw", "hip_roll", "hip_pitch", "knee", "ankle_pitch", "ankle_roll"
+        )
+        arm_joints = (
+            "shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow",
+            "wrist_roll", "wrist_pitch", "wrist_yaw",
+        )
+        joints: list[JointSpec] = []
+        idx = 0
+        for side in ("left", "right"):
+            for name in leg_joints:
+                joints.append(JointSpec(f"{side}_{name}", idx,
+ limit_low_rad=-2.36, limit_high_rad=2.36,
+ effort_limit=200.0, velocity_limit=20.0))
+                idx += 1
+        joints.append(JointSpec("torso", idx, limit_low_rad=-0.52,
+                                limit_high_rad=0.52, effort_limit=200.0,
+                                velocity_limit=20.0))
+        idx += 1
+        for side in ("left", "right"):
+            for name in arm_joints:
+                jt = "prismatic" if name.startswith("wrist") else "revolute"
+                joints.append(JointSpec(f"{side}_{name}", idx,
+ joint_type=jt,
+ limit_low_rad=-2.0, limit_high_rad=2.0,
+ effort_limit=100.0, velocity_limit=20.0))
+                idx += 1
+        # 5 fingers x 2 hands, underactuated prismatic contact DoF.
+        for side in ("left", "right"):
+            for finger in ("thumb", "index", "middle", "ring", "pinky"):
+                joints.append(JointSpec(f"{side}_hand_{finger}", idx,
+ joint_type="prismatic",
+ limit_low_rad=-0.47, limit_high_rad=0.47,
+ effort_limit=6.0, velocity_limit=50.0))
+                idx += 1
+        return cls(
+            name="fourier_gr1",
+            height_m=1.65,
+            mass_kg=65.0,
+            dof=len(joints),
+            base_to_com_m=0.85,
+            foot_radius_m=0.09,
+            joints=tuple(joints),
+            hands=(
+                HandSpec("left", finger_count=5, dof_per_finger=4,
+                         grasp_mode="underactuated"),
+                HandSpec("right", finger_count=5, dof_per_finger=4,
+                         grasp_mode="underactuated"),
+            ),
+            control_hz=500,
+        )
+
+    @classmethod
+    def default(cls) -> "HumanoidRobotSpec":
+        """The platform used when the caller does not pick one."""
+
+        return cls.unitree_g1()
+
     @property
     def num_dof(self) -> int:
         return self.dof
