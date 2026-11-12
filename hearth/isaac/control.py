@@ -120,11 +120,13 @@ class ControlLayers:
 
     def __init__(
         self,
-        robot: object,
+        robot: object = None,
         whole_body: WholeBodyControlConfig | None = None,
         loco_manip: LocoManipulationConfig | None = None,
         vla: VLAPlanterConfig | None = None,
     ) -> None:
+        # ``robot`` is optional: the control stack is an interface contract and
+        # must be constructible (and testable) on host, without a robot spec.
         self.robot = robot
         self.whole_body = whole_body or WholeBodyControlConfig()
         self.loco_manip = loco_manip or LocoManipulationConfig()
