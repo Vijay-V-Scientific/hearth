@@ -92,8 +92,13 @@ class ApartmentConfig:
     task_objects_per_scene: int = 3
 
     def __post_init__(self) -> None:
-        if self.rng is None:
-            self.rng = random.Random(self.seed)
+        # Leave ``rng`` as ``None`` unless the caller injected one. Storing an
+        # ``Random`` on the config and consuming it in ``generate_scene`` makes
+        # the same config yield a *different* scene every call (the RNG keeps
+        # advancing). With ``rng`` ``None``, ``generate_scene`` builds a fresh
+        # ``Random(seed)`` per call, so a given config is repeatable. An
+        # explicitly injected RNG (tests) still takes precedence.
+        pass
 
 
 @dataclass
