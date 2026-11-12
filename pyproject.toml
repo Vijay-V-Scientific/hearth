@@ -7,7 +7,7 @@ name = "hearth"
 version = "0.1.0"
 description = "Project HEARTH: humanoid household-manipulation research stack (sim-trained, hardware-transferred)."
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.11,<3.13"
 license = { text = "Proprietary" }
 authors = [{ name = "Vijay V", email = "vijay.v.scientific@gmail.com" }]
 keywords = ["robotics", "reinforcement-learning", "humanoid", "isaac-sim", "sim2real"]
@@ -28,6 +28,11 @@ dependencies = [
     "jax[cpu]>=0.4.30",
     # viz (cpu-only)
     "matplotlib>=3.9",
+    # Scene USD authoring (hearth.scene.writer) + parquet episode storage
+    # (hearth.data.storage). Imported lazily so the core package still imports
+    # without them, but the USD/parquet features and their tests need them.
+    "usd-core>=24.11",
+    "pyarrow>=15",
 ]
 
 [project.optional-dependencies]
@@ -64,12 +69,12 @@ filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 ignore = ["E501"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 ignore_missing_imports = true

@@ -11,3 +11,8 @@ torch>=2.4
 torchvision>=0.19
 jax[cpu]>=0.4.30
 matplotlib>=3.9
+# Scene USD authoring + parquet episode storage. Both are imported lazily
+# (hearth.scene.writer, hearth.data.storage) so the core package imports
+# without them, but the USD/parquet features and their tests require them.
+usd-core>=24.11
+pyarrow>=15
