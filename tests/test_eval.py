@@ -96,3 +96,29 @@ def test_load_benchmark_by_name():
     b = load_benchmark("hearth_50")
     assert isinstance(b, Benchmark)
     assert len(b.tasks) == 50
+
+
+def test_seeds_are_applied_to_all_tasks():
+    from hearth.eval.cli import _parse_seeds
+    from hearth.eval.benchmark import _seed_for
+
+    b = build_50_task_benchmark()
+    runner = MockTaskRunner(MockPolicy(name="cap0.6", capability={"default": 0.6}))
+
+    # No seeds -> all episodes use seed 0.
+    r0 = collect_benchmark_results(b, runner)
+    assert all(r.seed == 0 for r in r0)
+
+    # A single default seed applies to every task.
+    r5 = collect_benchmark_results(b, runner, seeds=_parse_seeds("5"))
+    assert all(r.seed == 5 for r in r5)
+
+    # A range seeds the first three tasks by index (0,1,2); the default
+    # fallback only applies to tasks beyond the range.
+    rng = _parse_seeds("0-2")
+    for i, t in enumerate(b.tasks[:3]):
+        assert _seed_for(t, i, rng) == i
+    assert _seed_for(b.tasks[3], 3, rng) == rng["default"]
+    assert _seed_for(b.tasks[3], 3, rng) == 2
+    # No seeds -> seed 0.
+    assert _seed_for(b.tasks[0], 0, {}) == 0
