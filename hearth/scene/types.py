@@ -83,8 +83,8 @@ class ApartmentConfig:
         task_objects_per_scene: Number of task-relevant objects per scene.
     """
 
-    width: float
-    depth: float
+    width: float = 8.0
+    depth: float = 6.0
     room_count: int = 4
     rng: Optional[random.Random] = field(default=None)
     min_object_spacing: float = 0.5
