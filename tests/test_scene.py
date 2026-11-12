@@ -1,5 +1,7 @@
 """Tests for the procedural scene generator and USD writer (pxr available)."""
 
+import pytest
+
 import hearth.scene as scene
 from hearth.scene import (
     ApartmentConfig,
@@ -69,3 +71,111 @@ def test_write_usd_handles_same_category_objects(tmp_path):
     # Count object boxes written under /hearth_scene/objects
     objs = stage.GetPrimAtPath("/hearth_scene/objects").GetChildren()
     assert len(objs) == len(s.objects)
+
+
+# --- Reuse-the-same-config determinism (regression) -------------------------
+
+def test_reusing_config_object_is_repeatable():
+    # The bug: ApartmentConfig stored a live RNG on itself, so calling
+    # generate_scene(cfg) twice advanced it and yielded a different apartment.
+    cfg = ApartmentConfig(width=8.0, depth=6.0, seed=11)
+    s1 = generate_scene(cfg)
+    s2 = generate_scene(cfg)  # same object again
+    sig1 = [(category, obj.position) for category, obj in s1.objects]
+    sig2 = [(category, obj.position) for category, obj in s2.objects]
+    assert sig1 == sig2
+    assert sig1  # and it actually generated something
+
+
+# --- USD geometry the brief actually needs--
+
+def _stage(tmp_path, seed=5):
+    from pxr import Usd
+    out = tmp_path / f"s{seed}.usd"
+    write_usd_from_config(ApartmentConfig(width=9.0, depth=7.0, seed=seed), str(out))
+    return Usd.Stage.Open(str(out))
+
+
+def test_write_usd_positions_objects_not_at_origin(tmp_path):
+    # Objects used to all sit at the world origin because no translate op was
+    # ever applied. Read the local transforms back and require distinct,
+    # non-origin placements.
+    from pxr import UsdGeom
+    stage = _stage(tmp_path)
+    objs = list(stage.GetPrimAtPath("/hearth_scene/objects").GetChildren())
+    assert objs
+    translations = []
+    for ch in objs:
+        m = UsdGeom.Xformable(ch).GetLocalTransformation()
+        t = m.ExtractTranslation()
+        translations.append((t[0], t[1], t[2]))
+    # At least one object must be off the origin in x or y.
+    assert any(abs(x) > 1e-6 or abs(y) > 1e-6 for x, y, _ in translations)
+    # And placements must differ from one another (not all collapsed).
+    assert len(set(translations)) > 1
+
+
+def test_write_usd_records_category_on_every_object(tmp_path):
+    from hearth.scene.generator import generate_scene
+    stage = _stage(tmp_path)
+    objs = list(stage.GetPrimAtPath("/hearth_scene/objects").GetChildren())
+    assert objs
+    for ch in objs:
+        assert ch.HasAttribute("hearth_category")
+        assert isinstance(ch.GetAttribute("hearth_category").Get(), str)
+
+
+def test_write_usd_rooms_have_walls(tmp_path):
+    # Rooms used to be a bare floor quad with no enclosure.
+    stage = _stage(tmp_path)
+    children = {c.GetName() for c in stage.GetPrimAtPath("/hearth_scene/rooms/room_0").GetChildren()}
+    assert "floor" in children
+    assert {"wall_north", "wall_south", "wall_east", "wall_west"} <= children
+
+
+def test_write_usd_yaw_is_a_real_rotation(tmp_path):
+    # orientation_deg used to be recorded but never applied. A 90-degree yaw
+    # must rotate the object's local x-axis onto ~+y.
+    from pxr import Gf, Usd, UsdGeom
+    from hearth.scene.types import ObjectConfig, Scene, SceneMetadata
+    obj = ObjectConfig("cabinet", (2.0, 1.0, 0.5), (0.4, 0.4, 1.8), orientation_deg=90.0)
+    sc = Scene(rooms=[], objects=[("cabinet", obj)],
+               metadata=SceneMetadata("x", 0, 0, 0.0, 1, 1))
+    out = tmp_path / "yaw.usd"
+    write_usd(sc, str(out))
+    stage = Usd.Stage.Open(str(out))
+    ch = list(stage.GetPrimAtPath("/hearth_scene/objects").GetChildren())[0]
+    m = UsdGeom.Xformable(ch).GetLocalTransformation()
+    # Gf.Matrix4d indexes m[row][col]. The first column is the image of the
+    # object's local x-axis (its x-extent, 0.4). With no yaw that entry sits on
+    # the diagonal (m[0][0]); a 90-degree yaw moves it onto the y-axis, so
+    # m[0][0] goes to zero and |m[1][0]| picks up the full 0.4. Reading the raw
+    # entries avoids any convention/scale coupling in the extraction helpers.
+    assert m[0][0] == pytest.approx(0.0, abs=1e-6)        # x-extent no longer along x
+    assert abs(m[1][0]) == pytest.approx(0.4, abs=1e-6)   # ...now along y
+    assert m[2][0] == pytest.approx(0.0, abs=1e-6)        # still flat in z
+    # The scale factor is preserved under rotation (column norm is invariant).
+    colnorm_x = (m[0][0] ** 2 + m[1][0] ** 2 + m[2][0] ** 2) ** 0.5
+    assert colnorm_x == pytest.approx(0.4, abs=1e-6)
+
+
+def test_write_usd_object_scale_matches_extent(tmp_path):
+    # The unit cube must be scaled so its world extents equal the config size.
+    from pxr import Usd, UsdGeom
+    from hearth.scene.types import ObjectConfig, Scene, SceneMetadata
+    obj = ObjectConfig("box", (3.0, 4.0, 0.25), (0.5, 0.6, 0.7))
+    sc = Scene(rooms=[], objects=[("box", obj)],
+               metadata=SceneMetadata("x", 0, 0, 0.0, 1, 1))
+    out = tmp_path / "scale.usd"
+    write_usd(sc, str(out))
+    stage = Usd.Stage.Open(str(out))
+    ch = list(stage.GetPrimAtPath("/hearth_scene/objects").GetChildren())[0]
+    # The cube is a unit cube scaled by the config size and moved to the
+    # configured centre. Gf.Matrix4d indexes m[row][col] with translation in
+    # row 3; with no yaw each axis column norm equals the configured extent.
+    m = UsdGeom.Xformable(ch).GetLocalTransformation()
+    centre = m.ExtractTranslation()
+    assert (centre[0], centre[1], centre[2]) == pytest.approx((3.0, 4.0, 0.25), abs=1e-6)
+    def colnorm(j):
+        return (m[0][j] ** 2 + m[1][j] ** 2 + m[2][j] ** 2) ** 0.5
+    assert (colnorm(0), colnorm(1), colnorm(2)) == pytest.approx((0.5, 0.6, 0.7), abs=1e-6)
