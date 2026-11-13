@@ -157,3 +157,36 @@ def test_seeds_are_applied_to_all_tasks():
     assert _seed_for(b.tasks[3], 3, rng) == 2
     # No seeds -> seed 0.
     assert _seed_for(b.tasks[0], 0, {}) == 0
+
+
+def test_report_shows_real_target_and_real_substep_count():
+    """Regression: the report used to print 'target 0%' and '8/8' on failed rows.
+
+    The pass target is declared on ``benchmark.metadata`` (objective 4 -> 0.70),
+    not on ``result.metadata``; and the per-task detail printed
+    ``num_substeps/num_substeps`` so a task that failed its first substep still
+    read "8/8". Both must reflect reality.
+    """
+    from hearth.eval import build_benchmark_result, collect_benchmark_results, render_markdown
+    from hearth.eval.baseline import BaselineRunner
+
+    b = load_benchmark("hearth_50")
+    res = collect_benchmark_results(b, BaselineRunner(), seeds={"default": 0})
+    br = build_benchmark_result(b, res, "baseline_v0")
+    md = render_markdown(b, br)
+
+    # The real 70% target from benchmark.metadata, not "0%".
+    assert "Benchmark target: 70%" in md
+    assert "Benchmark target: 0%" not in md
+
+    # A failing task must NOT print "N/N" (all substeps succeeded).
+    for line in md.splitlines():
+        if line.startswith("| `") and line.rstrip().endswith("❌ |"):
+            # detail column is "x.y/N"; the integer part must be < N (a real
+            # failure means at least one substep did not succeed).
+            import re
+
+            m = re.search(r"\| ([\d.]+)/(\d+) \|", line)
+            assert m is not None, line
+            ok, total = float(m.group(1)), int(m.group(2))
+            assert ok < total, f"failed row still shows {ok}/{total} (all-pass): {line}"

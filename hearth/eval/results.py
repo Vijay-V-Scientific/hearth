@@ -9,6 +9,7 @@ Importable without Isaac Sim.
 from __future__ import annotations
 
 import json
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -54,9 +55,15 @@ def render_markdown(
     lines.append("")
     lines.append(f"- Tasks run: **{result.num_tasks}**")
     lines.append(f"- Success rate: **{result.success_rate() * 100:.1f}%**")
-    lines.append(
-        f"- Benchmark target: {result.metadata.get('target_success_rate', 0.0) * 100:.0f}%"
+    # The pass target is declared on the benchmark, not the result. The old
+    # code read result.metadata (never populated), so every report printed
+    # "Benchmark target: 0%". Fall back to the result only if a caller set it.
+    target = benchmark.metadata.get(
+        "target_success_rate",
+        result.metadata.get("target_success_rate"),
     )
+    if target is not None:
+        lines.append(f"- Benchmark target: {float(target) * 100:.0f}%")
     lines.append("")
 
     # Per-family table.
@@ -75,17 +82,34 @@ def render_markdown(
     # Per-task detail.
     lines.append("## Task detail")
     lines.append("")
-    lines.append("| Task | Family | Difficulty | Substeps | Result |")
-    lines.append("| --- | --- | --- | ---: | :---: |")
+    lines.append("| Task | Family | Difficulty | Substeps | Episodes | Result |")
+    lines.append("| --- | --- | --- | ---: | ---: | :---: |")
+    # Group by task so several seeds of the same task become one honest row
+    # (episodes = successful/total runs), instead of one row per episode.
+    grouped: "OrderedDict[str, list]" = OrderedDict()
     for r in result.results:
-        t = r.task
+        grouped.setdefault(r.task_id, []).append(r)
+    for task_id, group in grouped.items():
+        t = group[0].task
         # build_benchmark_result() -> attach_tasks() guarantees this.
-        assert t is not None, f"task not attached for {r.task_id}"
-        status = "✅" if r.success else "❌"
-        detail = f"{t.num_substeps}/{t.num_substeps}"
-        if not cfg.include_substeps:
+        assert t is not None, f"task not attached for {task_id}"
+        n_runs = len(group)
+        n_ok = sum(1 for r in group if r.success)
+        passes = n_ok / n_runs
+        status = "✅" if passes >= 0.5 else "❌"
+        episodes = f"{n_ok}/{n_runs}" if n_runs > 1 else ("success" if n_ok else "fail")
+        if cfg.include_substeps:
+            # Real successful substeps (mean across runs), not num/num. The old
+            # code printed f"{num}/{num}" so a task that failed its first
+            # substep still read "8/8".
+            mean_ok = sum(sum(1 for s in r.substeps if s.success) for r in group) / n_runs
+            detail = f"{mean_ok:.1f}/{t.num_substeps}"
+        else:
             detail = "—"
-        lines.append(f"| `{r.task_id}` | {t.family.value} | {t.difficulty} | {detail} | {status} |")
+        lines.append(
+            f"| `{task_id}` | {t.family.value} | {t.difficulty} | "
+            f"{detail} | {episodes} | {status} |"
+        )
     lines.append("")
     return "\n".join(lines)
 
