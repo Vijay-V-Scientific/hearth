@@ -238,9 +238,25 @@ class BenchmarkResult:
 
     @property
     def num_tasks(self) -> int:
+        """Distinct tasks covered, regardless of how many seeds each ran.
+
+        Running 50 tasks at 3 seeds produces 150 episodes but is still a
+        50-task benchmark; this property reports 50.
+        """
+        return len({r.task_id for r in self.results})
+
+    @property
+    def num_episodes(self) -> int:
+        """Total task runs (task x seed). Equals num_tasks for a single seed."""
         return len(self.results)
 
     def success_rate(self) -> float:
+        """Per-episode success: fraction of all task runs that succeeded.
+
+        With N seeds per task this averages over the N runs of each task, which
+        is the standard RL eval statistic and what the objective's "70% success"
+        refers to once several seeds are requested.
+        """
         if not self.results:
             return 0.0
         return sum(1 for r in self.results if r.success) / len(self.results)
@@ -256,6 +272,7 @@ class BenchmarkResult:
             "benchmark_id": self.benchmark_id,
             "policy_id": self.policy_id,
             "num_tasks": self.num_tasks,
+            "num_episodes": self.num_episodes,
             "success_rate": round(self.success_rate(), 4),
             "by_family": {f.value: round(self.rate_by_family(f), 4) for f in TaskFamily},
             "results": [r.to_dict() for r in self.results],

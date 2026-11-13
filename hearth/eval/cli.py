@@ -42,9 +42,11 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--runner",
         default="mock",
-        help="runner name: mock (default). Real Isaac Lab runner is a scaffold.",
+        choices=["mock", "baseline"],
+        help="runner: 'mock' (random capability) or 'baseline' "
+        "(planner + priors + recovery). Isaac Lab runner is a scaffold.",
     )
-    run.add_argument("--policy", default="default", help="policy name")
+    run.add_argument("--policy", default="default", help="policy name (labels every episode)")
     run.add_argument("--seeds", default="0", help="comma-separated seeds per task")
     run.add_argument("--out", help="directory to write reports to")
     run.add_argument(
@@ -68,50 +70,40 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _parse_seeds(seeds: str) -> dict[str | int, int]:
-    """Parse a ``--seeds`` spec into a per-task mapping.
+def _parse_seeds(seeds: str) -> list[int]:
+    """Parse a ``--seeds`` spec into the list of seeds to run each task at.
 
-    Tokens are comma-separated:
-      * ``N``          -> seed N applied to all tasks (the fallback ``default``)
-      * ``i:N``        -> seed N for the task at 0-based index ``i``
-      * ``taskid:N``   -> seed N for the task with the given id
-      * ``lo-hi``      -> seeds lo..hi for consecutive 0-based indices
-    The last integer token becomes the fallback ``default``.
+    ``--seeds 0,1,2`` means "run every task three times, at seeds 0, 1 and 2"
+    (the README's contract), so each token is a seed value. ``lo-hi`` is
+    shorthand for the whole integer range. The result is de-duplicated and
+    sorted for reproducibility; an empty spec falls back to ``[0]``.
     """
-    out: dict[str | int, int] = {}
-    default: int | None = None
-    pos = 0
+    out: set[int] = set()
     for tok in seeds.split(","):
         tok = tok.strip()
         if not tok:
             continue
-        if ":" in tok:
-            key, val = tok.split(":", 1)
-            v = int(val.strip())
-            out[key.strip()] = v
-            default = v
-        elif "-" in tok:
+        if "-" in tok:
             lo, hi = tok.split("-", 1)
-            for i in range(int(lo), int(hi) + 1):
-                out[i] = i
-                default = i
-                pos = i + 1
+            a, b = sorted((int(lo), int(hi)))
+            out.update(range(a, b + 1))
         else:
-            v = int(tok)
-            out[pos] = v
-            default = v
-            pos += 1
-    if default is not None:
-        out["default"] = default
-    return out
+            out.add(int(tok))
+    return sorted(out) if out else [0]
 
 
 def _make_runner(name: str) -> TaskRunner:
     if name == "mock":
         return MockTaskRunner(MockPolicy(name="mock", capability={"default": 0.5}))
+    if name == "baseline":
+        # The honest non-Isaac baseline: planner decomposition + fixed
+        # capability priors + the recovery table. No physics, no GPU.
+        from .baseline import BaselineRunner
+
+        return BaselineRunner()
     raise ValueError(
-        f"unknown runner '{name}'. Only 'mock' is available here; "
-        "the Isaac Lab runner is a scaffold integration point."
+        f"unknown runner '{name}'. Available here: 'mock', 'baseline'. "
+        "The Isaac Lab runner is a scaffold integration point."
     )
 
 
@@ -136,8 +128,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     )
     br = build_benchmark_result(benchmark, results, args.policy)
 
-    print(f"Ran {br.num_tasks} tasks for policy '{args.policy}'.")
-    print(f"Success rate: {br.success_rate() * 100:.1f}%")
+    eps = br.num_episodes
+    per = eps // br.num_tasks if br.num_tasks else 0
+    print(f"Ran {br.num_tasks} tasks x {per} seeds = {eps} episodes for policy '{args.policy}'.")
+    print(f"Success rate (per episode): {br.success_rate() * 100:.1f}%")
     for family in TaskFamily:
         rate = br.rate_by_family(family)
         if rate > 0:
@@ -168,7 +162,7 @@ def cmd_load(args: argparse.Namespace) -> int:
 def cmd_report(args: argparse.Namespace) -> int:
     benchmark = _load(args.source)
     runner = _make_runner("mock")
-    results = collect_benchmark_results(benchmark, runner)
+    results = collect_benchmark_results(benchmark, runner, policy={"name": args.policy})
     br = build_benchmark_result(benchmark, results, args.policy)
     if args.out:
         path = write_report(benchmark, br, Path(args.out), args.format)

@@ -112,6 +112,10 @@ class BaselineRunner:
             int.from_bytes(hashlib.sha256(f"{task.id}:{seed}".encode()).digest(), "big")
         )
         plan = plan_task(task.instruction, self.scene, family=task.family.value)
+        # Honour the --policy name threaded through from the CLI (falls back to
+        # the runner's own name). Labels on every episode then match the
+        # BenchmarkResult and report filename instead of always "baseline_v0".
+        policy_id = (policy or {}).get("name") or self.name
 
         substeps: list[SubstepResult] = []
         task_ok = True
@@ -141,11 +145,11 @@ class BaselineRunner:
             )
         return TaskResult(
             task_id=task.id,
-            policy_id=self.name,
+            policy_id=policy_id,
             success=task_ok,
             seed=seed,
             duration_s=round(sum(s.duration_s for s in substeps), 3),
-            episode_id=f"{self.name}_{task.id}_{seed}",
+            episode_id=f"{policy_id}_{task.id}_{seed}",
             substeps=substeps,
             metadata={
                 "planned_subgoals": plan.num_subgoals,

@@ -84,10 +84,13 @@ def test_run_and_report():
     md = render_markdown(b, br)
     assert "Success by family" in md
     assert "kitchen" in md
-    assert "Success rate:" in md
+    assert "Success rate (per episode):" in md
+    # Single seed -> one episode per task.
+    assert "Episodes (task x seed): **50**" in md
 
     js = render_json(b, br)
     assert '"num_tasks": 50' in js
+    assert '"num_episodes": 50' in js
     csv = render_csv(b, br)
     assert (
         csv.splitlines()[0]
@@ -133,30 +136,43 @@ def test_load_benchmark_by_name():
     assert len(b.tasks) == 50
 
 
-def test_seeds_are_applied_to_all_tasks():
-    from hearth.eval.benchmark import _seed_for
+def test_seeds_run_each_task_once_per_seed():
+    """Regression: --seeds must run EVERY task at EACH seed (README promise).
+
+    The old parser mapped a task's position to a seed (task 0 -> seed 0,
+    task 1 -> seed 1, ...), so ``--seeds 0,1,2`` ran 50 tasks *once each* at
+    a different seed, not 50 tasks three times. Now N seeds => N runs per task.
+    """
     from hearth.eval.cli import _parse_seeds
 
     b = build_50_task_benchmark()
     runner = MockTaskRunner(MockPolicy(name="cap0.6", capability={"default": 0.6}))
 
-    # No seeds -> all episodes use seed 0.
+    # No seeds -> one episode per task at seed 0.
     r0 = collect_benchmark_results(b, runner)
+    assert len(r0) == 50
     assert all(r.seed == 0 for r in r0)
 
-    # A single default seed applies to every task.
+    # A single seed value still runs one episode per task, at that seed.
     r5 = collect_benchmark_results(b, runner, seeds=_parse_seeds("5"))
     assert all(r.seed == 5 for r in r5)
+    assert len(r5) == 50
 
-    # A range seeds the first three tasks by index (0,1,2); the default
-    # fallback only applies to tasks beyond the range.
-    rng = _parse_seeds("0-2")
-    for i, t in enumerate(b.tasks[:3]):
-        assert _seed_for(t, i, rng) == i
-    assert _seed_for(b.tasks[3], 3, rng) == rng["default"]
-    assert _seed_for(b.tasks[3], 3, rng) == 2
-    # No seeds -> seed 0.
-    assert _seed_for(b.tasks[0], 0, {}) == 0
+    # --seeds 0,1,2 -> every task runs three times, once at each seed.
+    three = collect_benchmark_results(b, runner, seeds=_parse_seeds("0,1,2"))
+    assert len(three) == 150
+    by_task: dict[str, set[int]] = {}
+    for r in three:
+        by_task.setdefault(r.task_id, set()).add(r.seed)
+    assert all(seeds == {0, 1, 2} for seeds in by_task.values())
+    assert len(by_task) == 50  # 50 tasks, each 3x = 150 episodes
+
+    # A range token expands to the full set.
+    assert _parse_seeds("0-2") == [0, 1, 2]
+    # Duplicates / unsorted input normalise to a sorted unique list.
+    assert _parse_seeds("2,0,1,0") == [0, 1, 2]
+    # Empty spec falls back to a single seed 0 run.
+    assert _parse_seeds("") == [0]
 
 
 def test_report_shows_real_target_and_real_substep_count():
@@ -190,3 +206,40 @@ def test_report_shows_real_target_and_real_substep_count():
             assert m is not None, line
             ok, total = float(m.group(1)), int(m.group(2))
             assert ok < total, f"failed row still shows {ok}/{total} (all-pass): {line}"
+
+
+def test_make_runner_supports_baseline():
+    """Regression: --runner baseline must be selectable from the CLI."""
+    from hearth.eval.baseline import BaselineRunner
+    from hearth.eval.cli import _make_runner
+
+    assert isinstance(_make_runner("mock"), MockTaskRunner)
+    assert isinstance(_make_runner("baseline"), BaselineRunner)
+    import pytest
+
+    with pytest.raises(ValueError, match="baseline"):
+        _make_runner("isaaclab")
+
+
+def test_policy_name_is_passed_through_to_episodes():
+    """Regression: --policy must label every episode, not just the report.
+
+    Both runners used to hardcode their internal name (mock / baseline_v0) on
+    every TaskResult, so ``--policy mine`` labelled the summary but every
+    episode still read 'mock' / 'baseline_v0' and the episode ids were wrong.
+    """
+    from hearth.eval.baseline import BaselineRunner
+
+    b = build_50_task_benchmark()
+
+    res = collect_benchmark_results(b, MockTaskRunner(), seeds=[0], policy={"name": "mine"})
+    assert all(r.policy_id == "mine" for r in res)
+    assert all(r.episode_id.startswith("mine_") for r in res)
+
+    res2 = collect_benchmark_results(b, BaselineRunner(), seeds=[0], policy={"name": "sweep3"})
+    assert all(r.policy_id == "sweep3" for r in res2)
+    assert all(r.episode_id.startswith("sweep3_") for r in res2)
+
+    # Without an override the runners keep their own default names.
+    def_res = collect_benchmark_results(b, BaselineRunner(), seeds=[0])
+    assert all(r.policy_id == "baseline_v0" for r in def_res)

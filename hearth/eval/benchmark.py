@@ -80,6 +80,10 @@ class MockTaskRunner:
             int.from_bytes(hashlib.sha256(f"{task.id}:{seed}".encode()).digest(), "big")
         )
         cap = self.policy.capability_for(task.family.value)
+        # Honour the --policy name threaded through from the CLI so the label
+        # on every episode matches the benchmark result and report filename;
+        # fall back to the runner's own name when no override is given.
+        policy_id = (policy or {}).get("name") or self.policy.name
 
         substeps: list[SubstepResult] = []
         task_ok = True
@@ -96,11 +100,11 @@ class MockTaskRunner:
             )
         return TaskResult(
             task_id=task.id,
-            policy_id=self.policy.name,
+            policy_id=policy_id,
             success=task_ok,
             seed=seed,
             duration_s=round(sum(s.duration_s for s in substeps), 3),
-            episode_id=f"mock_{task.id}_{seed}",
+            episode_id=f"{policy_id}_{task.id}_{seed}",
             substeps=substeps,
         )
 
@@ -130,7 +134,7 @@ def load_benchmark(source: str | Path) -> Benchmark:
 def run_benchmark(
     benchmark: Benchmark,
     runner: TaskRunner,
-    seeds: dict[str, int] | None = None,
+    seeds: "list[int] | dict[str | int, int] | int | None" = None,
     policy: Optional[dict[str, Any]] = None,
 ) -> TaskResult:
     """Run every task in ``benchmark`` with ``runner``; return the first result.
@@ -138,38 +142,52 @@ def run_benchmark(
     Returns a single :class:`TaskResult` for the first task so callers can
     chain; use :func:`collect_benchmark_results` for the full list.
     """
-    seed = seeds.get(benchmark.id, 0) if seeds else 0
+    seed = _normalise_seeds(seeds)[0]
     return runner.run_task(benchmark.tasks[0], seed, policy)
 
 
-def _seed_for(task: Task, index: int, seeds: dict[str | int, int]) -> int:
-    """Resolve the seed for one task.
+def _normalise_seeds(
+    seeds: list[int] | dict[str | int, int] | int | None,
+) -> list[int]:
+    """Coerce the accepted ``seeds`` forms into a deterministic, sorted list.
 
-    ``seeds`` keys are either the task id (str), the 0-based index (int), or
-    the fallback string ``"default"``. Returns 0 when no seed is specified.
+    Every task is run once per returned seed. Accepts:
+
+      * ``None`` / empty      -> ``[0]`` (a single run at seed 0)
+      * an ``int``            -> ``[int]``
+      * a list/tuple of ints  -> sorted, de-duplicated
+      * a legacy per-task dict -> the sorted set of its values, so callers
+        passing ``{"default": 0}`` still run one episode per task at seed 0.
     """
-    if not seeds:
-        return 0
-    if task.id in seeds:
-        return int(seeds[task.id])
-    if index in seeds:
-        return int(seeds[index])
-    if "default" in seeds:
-        return int(seeds["default"])
-    return 0
+    if seeds is None:
+        return [0]
+    if isinstance(seeds, int):
+        return [int(seeds)]
+    if isinstance(seeds, dict):
+        vals = sorted({int(v) for v in seeds.values()})
+        return vals or [0]
+    vals = [int(s) for s in seeds]
+    return sorted(set(vals)) if vals else [0]
 
 
 def collect_benchmark_results(
     benchmark: Benchmark,
     runner: TaskRunner,
-    seeds: dict[str | int, int] | None = None,
+    seeds: list[int] | dict[str | int, int] | int | None = None,
     policy: Optional[dict[str, Any]] = None,
 ) -> list[TaskResult]:
-    """Run every task in ``benchmark`` and return all results."""
+    """Run every task once per seed and return all (task x seed) episodes.
+
+    ``--seeds 0,1,2`` therefore yields three episodes for each task (the
+    README's "use several seeds" contract); a single seed yields one. A task
+    that fails on some seeds and succeeds on others now contributes an honest
+    per-episode outcome rather than a single lucky-or-unlucky draw.
+    """
+    seed_list = _normalise_seeds(seeds)
     results: list[TaskResult] = []
-    for i, task in enumerate(benchmark.tasks):
-        seed = _seed_for(task, i, seeds or {})
-        results.append(runner.run_task(task, seed, policy))
+    for seed in seed_list:
+        for task in benchmark.tasks:
+            results.append(runner.run_task(task, seed, policy))
     return results
 
 

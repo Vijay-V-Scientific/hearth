@@ -53,8 +53,9 @@ def render_markdown(
     lines: list[str] = []
     lines.append(f"# Benchmark `{result.benchmark_id}` — policy `{result.policy_id}`")
     lines.append("")
-    lines.append(f"- Tasks run: **{result.num_tasks}**")
-    lines.append(f"- Success rate: **{result.success_rate() * 100:.1f}%**")
+    lines.append(f"- Tasks: **{result.num_tasks}**")
+    lines.append(f"- Episodes (task x seed): **{result.num_episodes}**")
+    lines.append(f"- Success rate (per episode): **{result.success_rate() * 100:.1f}%**")
     # The pass target is declared on the benchmark, not the result. The old
     # code read result.metadata (never populated), so every report printed
     # "Benchmark target: 0%". Fall back to the result only if a caller set it.
