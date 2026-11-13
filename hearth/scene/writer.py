@@ -38,12 +38,57 @@ def _room_colour(name: str) -> tuple[float, float, float]:
     return _ROOM_COLOURS.get(name, (0.75, 0.75, 0.75))
 
 
-def _make_box(stage, path: str, centre, size, colour) -> "Any":
+# Household furniture density (kg/m^3) for estimating rigid-body mass from a
+# bounding volume. Not measured per object; a sane non-zero mass is what a
+# physics sim needs so movable items are neither weightless nor immovable.
+_DENSITY_KG_M3 = 200.0
+_MASS_CLAMP = (0.05, 500.0)
+_GRAVITY = (0.0, 0.0, -9.81)
+
+
+def _ensure_physics_scene(stage) -> "Any":
+    """Create the stage ``/physicsScene`` (with gravity) if absent.
+
+    Isaac Sim reads this to know how to simulate the stage; without it a loaded
+    USD has no gravity and objects neither rest on the floor nor respond to the
+    robot. The ``UsdPhysics.PhysicsScene`` Python class is not bound in this
+    usd-core build, so the prim is created by its schema type name.
+    """
+    from pxr import Sdf
+
+    path = "/physicsScene"
+    prim = stage.GetPrimAtPath(path)
+    if not prim.IsValid():
+        prim = stage.DefinePrim(path, "PhysicsScene")
+    if not prim.HasAttribute("physics:gravity"):
+        prim.CreateAttribute("physics:gravity", Sdf.ValueTypeNames.Float3).Set(_GRAVITY)
+    return prim
+
+
+def _apply_physics(prim, rigid: bool, volume: float = 1.0) -> None:
+    """Make ``prim`` a solid collider; if ``rigid``, a dynamic rigid body too.
+
+    Static geometry (floor, walls, bolted furniture) collides but does not move.
+    Movable household objects become rigid bodies with a mass estimated from
+    their bounding volume so the sim can push and lift them.
+    """
+    from pxr import Sdf, UsdPhysics
+
+    UsdPhysics.CollisionAPI.Apply(prim)
+    if rigid:
+        UsdPhysics.RigidBodyAPI.Apply(prim)
+        mass = min(_MASS_CLAMP[1], max(_MASS_CLAMP[0], volume * _DENSITY_KG_M3))
+        if not prim.HasAttribute("physics:mass"):
+            prim.CreateAttribute("physics:mass", Sdf.ValueTypeNames.Float).Set(float(mass))
+
+
+def _make_box(stage, path: str, centre, size, colour, rigid: bool = False) -> "Any":
     """Define a unit cube given a world-space centre and full extents.
 
     The cube is scaled from a unit (side 1, centred at the local origin) box,
     so ``size`` is the true bounding-box extent and ``centre`` is the world
-    position of the box centre. Returns the prim.
+    position of the box centre. It is always a solid collider; when ``rigid``
+    it is also a dynamic rigid body. Returns the prim.
     """
     from pxr import Gf, UsdGeom
 
@@ -59,6 +104,9 @@ def _make_box(stage, path: str, centre, size, colour) -> "Any":
     xform.AddTranslateOp().Set(Gf.Vec3d(*centre))
     xform.AddRotateZOp().Set(0.0)
     xform.AddScaleOp().Set(Gf.Vec3f(*size))
+
+    sx, sy, sz = (float(v) for v in size)
+    _apply_physics(cube.GetPrim(), rigid=rigid, volume=sx * sy * sz)
     return cube
 
 
@@ -122,6 +170,7 @@ def _write_room(stage, room_path, room, colour, index, doorways) -> None:
     floor.CreatePointsAttr(corners)
     floor.CreateFaceVertexCountsAttr([4])
     floor.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    _apply_physics(floor.GetPrim(), rigid=False)
     _apply_material(stage, f"{room_path}/floor", colour)
 
     # Each wall: normal axis, the shared-edge plane coordinate, the box centre
@@ -186,12 +235,15 @@ def _write_object(stage, obj_path, category, config) -> None:
     x, y, z = config.position
     sx, sy, sz = config.size
 
+    # ``fixed`` means kinematically bolted to the ground; anything not fixed
+    # becomes a dynamic rigid body so the sim can push and lift it.
     box = _make_box(
         stage,
         obj_path,
         (float(x), float(y), float(z)),
         (float(sx), float(sy), float(sz)),
         _OBJECT_DISPLAY,
+        rigid=not config.fixed,
     )
 
     prim = box.GetPrim()
@@ -229,6 +281,7 @@ def write_usd(scene: Scene, path: str) -> str:
     stage = Usd.Stage.CreateNew(path)
     UsdGeom.SetStageUpAxis(stage, "Z")
     stage.SetMetadata("metersPerUnit", 1.0)  # metres; Isaac Sim sets its own scale on load
+    _ensure_physics_scene(stage)
 
     root = stage.DefinePrim("/hearth_scene")
     root.CreateAttribute("hearth_scene_id", Sdf.ValueTypeNames.String).Set(scene.metadata.scene_id)

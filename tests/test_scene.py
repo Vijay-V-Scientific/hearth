@@ -103,6 +103,46 @@ def _stage(tmp_path, seed=5):
     return Usd.Stage.Open(str(out))
 
 
+def test_write_usd_has_physics_scene_and_colliders(tmp_path):
+    # The scene used to be inert geometry (no physics), so it was unusable in a
+    # sim: nothing rested on the floor and the robot fell through the world. It
+    # now carries a gravity-bearing PhysicsScene and real collision.
+    from pxr import UsdPhysics
+
+    stage = _stage(tmp_path)
+    ps = stage.GetPrimAtPath("/physicsScene")
+    assert ps.IsValid() and ps.GetTypeName() == "PhysicsScene"
+    gravity = ps.GetAttribute("physics:gravity").Get()
+    assert gravity is not None and gravity[2] < 0.0
+
+    colliders = rigid = movable_seen = 0
+
+    def walk(p):
+        nonlocal colliders, rigid, movable_seen
+        if p.IsValid():
+            if p.HasAPI(UsdPhysics.CollisionAPI):
+                colliders += 1
+            if p.HasAPI(UsdPhysics.RigidBodyAPI):
+                rigid += 1
+        for c in p.GetChildren():
+            walk(c)
+
+    walk(stage.GetPseudoRoot())
+    assert colliders > 0, "no colliders authored"
+    assert rigid > 0, "no movable rigid bodies authored"
+    # Floor must be a static collider, not a falling rigid body.
+    floor = stage.GetPrimAtPath("/hearth_scene/rooms/room_0/floor")
+    assert floor.HasAPI(UsdPhysics.CollisionAPI)
+    assert not floor.HasAPI(UsdPhysics.RigidBodyAPI)
+    # Every movable rigid body carries a sane positive mass.
+    for obj in stage.GetPrimAtPath("/hearth_scene/objects").GetChildren():
+        if obj.HasAPI(UsdPhysics.RigidBodyAPI):
+            movable_seen += 1
+            mass = obj.GetAttribute("physics:mass").Get()
+            assert mass is not None and 0.0 < mass <= 500.0
+    assert movable_seen > 0
+
+
 def test_write_usd_positions_objects_not_at_origin(tmp_path):
     # Objects used to all sit at the world origin because no translate op was
     # ever applied. Read the local transforms back and require distinct,
