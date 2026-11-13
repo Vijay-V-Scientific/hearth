@@ -227,11 +227,17 @@ def plan_task(
         place(obj, target_room or "destination")
 
     elif fam == "kitchen":
+        # Load the dishwasher / put groceries in the fridge: the appliance is
+        # an articulated object that must be opened before the item goes in
+        # and closed after — the docstring promises "(open) ... close" and the
+        # old plan skipped both, so "load the dishwasher" never opened it.
         dest = target_room or "kitchen"
         nav("robot" if target_room is None else target_room)
+        open_art(f"{dest}-appliance", "open")
         grasp(obj)
         carry(obj)
         place(obj, dest)
+        open_art(f"{dest}-appliance", "close")
 
     else:  # tidying (also the fallback)
         dest = target_room or "storage"

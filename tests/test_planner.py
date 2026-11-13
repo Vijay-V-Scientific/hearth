@@ -97,3 +97,19 @@ def test_plan_many_matches_one_by_one():
     assert len(plans) == 3
     for p, i in zip(plans, ins):
         assert p.instruction == i
+
+
+def test_kitchen_plan_opens_the_appliance():
+    """Regression: the docstring promised "(open) ... close"; the plan never did.
+
+    "Clear the table and load the dishwasher" must decompose to a plan that
+    actually opens an appliance — scoring it later should hit the
+    open_articulated prior, not fall through to a generic step.
+    """
+    r = plan_task("Clear the table and load the dishwasher", SCENE, family="kitchen")
+    open_steps = [s for s in r.subgoals if s.type == SubgoalType.OPEN_ARTICULATED]
+    assert len(open_steps) >= 1, f"appliance never opened: {[s.type.value for s in r.subgoals]}"
+    # And the item itself is still grasped and placed: the open steps are
+    # part of the plan, not the whole plan.
+    types = [s.type for s in r.subgoals]
+    assert SubgoalType.GRASP in types and SubgoalType.PLACE in types

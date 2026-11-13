@@ -28,13 +28,41 @@ def _toy_task(family: TaskFamily, n: int = 5) -> Task:
     )
 
 
-def test_runner_produces_one_result_per_substep():
+def test_runner_scores_planned_subgoals_not_positional_filler():
+    """Regression: substeps used to be matched to the benchmark by POSITION.
+
+    The task declares 6 placeholder substeps ("Complete subtask k"), but the
+    planner emits 5 real sub-goals. The old runner paired plan.subgoals[k] to
+    the k-th filler step, so "Open the dishwasher" could be scored as a
+    "stabilize" step and the extra filler fell through to a generic prior. The
+    runner now scores the planner's real decomposition, so there is one result
+    per *planned sub-goal*, each labelled with its actual type and payload.
+    """
     task = _toy_task(TaskFamily.TIDYING, 6)
     res = BaselineRunner().run_task(task, seed=0)
     assert res.task_id == task.id
-    assert len(res.substeps) == 6
+    # One result per real sub-goal (5), not per placeholder (6).
+    assert len(res.substeps) == res.metadata["planned_subgoals"]
+    assert res.metadata["planned_subgoals"] != task.num_substeps
     assert res.success in (True, False)
     assert res.policy_id == "baseline_v0"
+    # Every scored substep names the concrete sub-goal it evaluated.
+    for s in res.substeps:
+        assert s.details["subgoal"] in {
+            "navigate",
+            "search",
+            "grasp",
+            "carry",
+            "place",
+            "open_articulated",
+            "recover",
+            "reset",
+            "stabilize",
+        }
+        assert ":" in s.substep  # "type:payload", not "Complete subtask 3 of 8"
+    # A tidying plan must contain a grasp and a place, never a filler "8/8".
+    types = [s.details["subgoal"] for s in res.substeps]
+    assert "grasp" in types and "place" in types
 
 
 def test_runner_is_deterministic_per_seed():

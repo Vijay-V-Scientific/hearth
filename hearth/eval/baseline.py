@@ -116,25 +116,24 @@ class BaselineRunner:
         substeps: list[SubstepResult] = []
         task_ok = True
         recovered_count = 0
-        for k, sub in enumerate(task.substeps):
-            subgoal = plan.subgoals[k] if k < len(plan.subgoals) else None
-            if subgoal is None:
-                # The benchmark task declares more substeps than the planner
-                # emitted (generic filler steps).  Score one ordinary step at
-                # the family's fallback prior rather than auto-failing it, so
-                # the rate reflects capability and not a length mismatch.
-                ok, rec = self._attempt(f"__family:{task.family.value}", rng)
-            else:
-                ok, rec = self._attempt(subgoal.type.value, rng)
+        # Score the planner's real sub-goal decomposition, NOT an index pairing
+        # onto the benchmark's placeholder steps.  The old code did
+        # plan.subgoals[k] against the k-th *filler* substep ("Complete subtask
+        # 3 of 8"), so "Open the dishwasher" could be scored as a "stabilize"
+        # step and extra substeps fell through to a generic prior.  Each result
+        # below names the actual sub-goal it is scoring.
+        for subgoal in plan.subgoals:
+            ok, rec = self._attempt(subgoal.type.value, rng)
             recovered_count += int(rec)
             task_ok = task_ok and ok
             substeps.append(
                 SubstepResult(
-                    substep=sub.description,
+                    substep=f"{subgoal.type.value}:{subgoal.payload}",
                     success=ok,
-                    duration_s=round(rng.uniform(1.0, sub.timeout_s or 60.0), 3),
+                    duration_s=round(rng.uniform(1.0, 30.0), 3),
                     details={
-                        "subgoal": subgoal.type.value if subgoal else "missing",
+                        "subgoal": subgoal.type.value,
+                        "payload": subgoal.payload,
                         "planner_family": plan.family,
                         "recovered": rec,
                     },
@@ -151,5 +150,6 @@ class BaselineRunner:
             metadata={
                 "planned_subgoals": plan.num_subgoals,
                 "recoveries_saved": recovered_count,
+                "benchmark_substeps": task.num_substeps,
             },
         )
