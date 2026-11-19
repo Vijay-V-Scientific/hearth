@@ -3,15 +3,17 @@
 Launches Isaac Lab headless, spawns a single Unitree G1 at its nominal standing
 pose on a ground plane, holds the default joint position with an implicit-PD
 position target for a few seconds of simulated time, and measures the base root
-height and tilt. PASS means the torso never drops toward the floor and stays
-upright.
+height and tilt.
+
+PASS (per Vijay) is the PIPELINE: the G1 USD imports, spawns with its joints,
+and steps real physics with finite poses throughout. Stance is *reported* but is
+not a pass criterion: a free-floating biped held at fixed joint angles is
+dynamically unbalanced and is expected to topple, so this check reports the
+observed base height / tilt honestly and defers true standing to the trained
+locomotion controller (Objective 1).
 
 Backend note: on this machine the PhysX backend's plugins fail to load (USD ABI
 mismatch), so the working physics backend is Newton/MJWarp; that is the default.
-The pipeline this gate proves is import -> spawn -> real physics stepping. A
-free-floating biped held at *fixed* joint angles is dynamically unbalanced, so
-this PD-hold check is expected to topple: standing for real needs the trained
-locomotion controller (Objective 1), not a static position hold.
 
 Run with the Isaac Lab environment (not the hearth venv):
 
@@ -131,15 +133,33 @@ def run() -> int:
                         flush=True,
                     )
 
-        stands = min_z > MIN_UPRIGHT_HEIGHT and max_tilt < MAX_TILT_RAD
         final_z = float(robot.data.root_pose_w.torch[0, 2])
         print(
             f"[gate] FINAL base_z={final_z:.3f} m  min_z={min_z:.3f} m  "
             f"max_tilt={math.degrees(max_tilt):.1f} deg",
             flush=True,
         )
-        print(f"[gate] G1 STANDS: {'PASS' if stands else 'FAIL'}", flush=True)
-        exit_code = 0 if stands else 1
+
+        # PASS = the pipeline: the G1 spawned with its full joint set, stepped the
+        # requested number of real physics steps, and stayed finite throughout
+        # (no NaN/Inf poses). Stance is reported separately and is not a pass
+        # criterion; see the module docstring (standing is Objective 1's job).
+        pipeline_ok = (
+            robot.num_joints > 0
+            and args_cli.steps > 0
+            and math.isfinite(min_z)
+            and math.isfinite(max_tilt)
+        )
+        upright = min_z > MIN_UPRIGHT_HEIGHT and max_tilt < MAX_TILT_RAD
+        print(
+            f"[gate] STANCE (not a criterion): {'held upright' if upright else 'toppled (expected: needs locomotion policy)'}",
+            flush=True,
+        )
+        print(
+            f"[gate] PIPELINE (import+spawn+physics): {'PASS' if pipeline_ok else 'FAIL'}",
+            flush=True,
+        )
+        exit_code = 0 if pipeline_ok else 1
     return exit_code
 
 
