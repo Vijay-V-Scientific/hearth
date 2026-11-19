@@ -70,7 +70,7 @@ def render_markdown(
     # Per-family table.
     lines.append("## Success by family")
     lines.append("")
-    lines.append("| Family | Tasks | Success |")
+    lines.append("| Family | Episodes | Success |")
     lines.append("| --- | ---: | ---: |")
     for family in TaskFamily:
         group = [r for r in result.results if r.task_id in _family_index(benchmark, family)]

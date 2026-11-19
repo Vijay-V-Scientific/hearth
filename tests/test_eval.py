@@ -243,3 +243,21 @@ def test_policy_name_is_passed_through_to_episodes():
     # Without an override the runners keep their own default names.
     def_res = collect_benchmark_results(b, BaselineRunner(), seeds=[0])
     assert all(r.policy_id == "baseline_v0" for r in def_res)
+
+
+def test_family_table_counts_episodes_not_tasks():
+    """The per-family table counts episodes (task x seed), so its header says so.
+
+    Running 7 tidying tasks at 3 seeds gives 21 rows; labelling that column
+    "Tasks" would imply 21 distinct tasks. It must read "Episodes".
+    """
+    from hearth.eval.baseline import BaselineRunner
+
+    b = build_50_task_benchmark()
+    res = collect_benchmark_results(b, BaselineRunner(), seeds=[0, 1, 2])
+    br = build_benchmark_result(b, res, "default")
+    md = render_markdown(b, br)
+    assert "| Family | Episodes | Success |" in md
+    assert "| Family | Tasks | Success |" not in md
+    # 7 tidying tasks x 3 seeds = 21 episodes in the family table.
+    assert "| tidying | 21 |" in md
