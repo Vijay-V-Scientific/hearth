@@ -47,33 +47,41 @@ def _subdivide(
     y0: float,
     w: float,
     d: float,
-    depth: int,
+    target: int,
     rooms: list[RoomConfig],
 ) -> None:
-    """Recursively split the rectangle [x0,x0+w] x [y0,y0+d] into rooms."""
-    if depth <= 0:
+    """Split the rectangle [x0,x0+w] x [y0,y0+d] into exactly ``target`` rooms.
+
+    Largest-first binary split: repeatedly cut the biggest current leaf along
+    its longer axis until ``target`` leaves exist. The old version recursed on
+    a *depth*, so it produced 2**depth rooms (ask 4 -> 8, ask 6 -> 32). Here we
+    stop at the requested count; splitting stops early only if every leaf is
+    too small (< 1 m) to divide without making a sliver.
+    """
+    target = max(1, int(target))
+    leaves = [(x0, y0, w, d)]
+    while len(leaves) < target:
+        li = max(range(len(leaves)), key=lambda i: leaves[i][2] * leaves[i][3])
+        lx, ly, lw, ld = leaves.pop(li)
+        if lw >= ld:
+            if lw < 1.0:
+                leaves.append((lx, ly, lw, ld))
+                break
+            t = rng.uniform(0.3, 0.7)
+            cut = lx + lw * t
+            leaves.append((lx, ly, cut - lx, ld))
+            leaves.append((cut, ly, lw - (cut - lx), ld))
+        else:
+            if ld < 1.0:
+                leaves.append((lx, ly, lw, ld))
+                break
+            t = rng.uniform(0.3, 0.7)
+            cut = ly + ld * t
+            leaves.append((lx, ly, lw, cut - ly))
+            leaves.append((lx, cut, lw, ld - (cut - ly)))
+    for lx, ly, lw, ld in leaves:
         name = rng.choice(_ROOM_TYPES)
-        rooms.append(RoomConfig(name=name, size_x=w, size_y=d, origin_x=x0, origin_y=y0))
-        return
-    # Prefer splitting along the longer axis; fall back to random.
-    if w >= d:
-        if w < 1.0:
-            name = rng.choice(_ROOM_TYPES)
-            rooms.append(RoomConfig(name=name, size_x=w, size_y=d, origin_x=x0, origin_y=y0))
-            return
-        t = rng.uniform(0.3, 0.7)
-        cut = x0 + w * t
-        _subdivide(rng, x0, y0, cut - x0, d, depth - 1, rooms)
-        _subdivide(rng, cut, y0, w - (cut - x0), d, depth - 1, rooms)
-    else:
-        if d < 1.0:
-            name = rng.choice(_ROOM_TYPES)
-            rooms.append(RoomConfig(name=name, size_x=w, size_y=d, origin_x=x0, origin_y=y0))
-            return
-        t = rng.uniform(0.3, 0.7)
-        cut = y0 + d * t
-        _subdivide(rng, x0, y0, w, cut - y0, depth - 1, rooms)
-        _subdivide(rng, x0, cut, w, d - (cut - y0), depth - 1, rooms)
+        rooms.append(RoomConfig(name=name, size_x=lw, size_y=ld, origin_x=lx, origin_y=ly))
 
 
 def _place_in_room(
@@ -193,8 +201,7 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
 
     # 1. Rooms via BSP subdivision.
     rooms: list[RoomConfig] = []
-    target_depth = max(1, cfg.room_count - 1)
-    _subdivide(rng, 0.0, 0.0, cfg.width, cfg.depth, target_depth, rooms)
+    _subdivide(rng, 0.0, 0.0, cfg.width, cfg.depth, cfg.room_count, rooms)
     # If we got fewer rooms than requested, split a couple more.
     guard = 0
     while len(rooms) < cfg.room_count and guard < 20:
