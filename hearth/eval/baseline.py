@@ -66,6 +66,8 @@ _FAILURE_FOR_TYPE: dict[str, str] = {
 class BaselineRunner:
     """A TaskRunner whose "policy" is the planner + fixed priors + recovery."""
 
+    is_measurement = False  # planner + fixed priors + recovery, not a real robot
+
     def __init__(
         self,
         priors: Optional[dict[str, float]] = None,

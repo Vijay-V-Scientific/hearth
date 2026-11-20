@@ -64,6 +64,8 @@ class MockTaskRunner:
     how a long-horizon task fails on its first missed sub-goal).
     """
 
+    is_measurement = False  # random per-substep draws, not a real robot
+
     def __init__(self, policy: MockPolicy | None = None) -> None:
         self.policy = policy or MockPolicy(name="mock", capability={"default": 0.5})
 

@@ -261,3 +261,26 @@ def test_family_table_counts_episodes_not_tasks():
     assert "| Family | Tasks | Success |" not in md
     # 7 tidying tasks x 3 seeds = 21 episodes in the family table.
     assert "| tidying | 21 |" in md
+
+
+def test_report_warns_when_run_is_not_a_measurement():
+    """A prior-based run must be labelled 'not a measured result'; a real one
+    must not. Guards against a stand-in success rate being read as evidence
+    that an objective is met."""
+    from hearth.eval.benchmark import MockTaskRunner
+
+    b = build_50_task_benchmark()
+    results = collect_benchmark_results(b, MockTaskRunner(), seeds=[0, 1])
+    br = build_benchmark_result(b, results, "default")
+
+    br.metadata["is_measurement"] = False
+    br.metadata["runner"] = "baseline"
+    md = render_markdown(b, br)
+    assert "Not a measured result" in md
+    assert "`baseline` stand-in runner" in md
+    # The per-episode line is still present (tests and tools parse it).
+    assert "Success rate (per episode):" in md
+
+    br.metadata["is_measurement"] = True
+    md2 = render_markdown(b, br)
+    assert "Not a measured result" not in md2

@@ -127,6 +127,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         benchmark, runner, seeds=seeds, policy={"name": args.policy}
     )
     br = build_benchmark_result(benchmark, results, args.policy)
+    br.metadata["is_measurement"] = getattr(runner, "is_measurement", True)
+    br.metadata["runner"] = args.runner
 
     eps = br.num_episodes
     per = eps // br.num_tasks if br.num_tasks else 0
@@ -164,6 +166,8 @@ def cmd_report(args: argparse.Namespace) -> int:
     runner = _make_runner("mock")
     results = collect_benchmark_results(benchmark, runner, policy={"name": args.policy})
     br = build_benchmark_result(benchmark, results, args.policy)
+    br.metadata["is_measurement"] = getattr(runner, "is_measurement", True)
+    br.metadata["runner"] = "mock"
     if args.out:
         path = write_report(benchmark, br, Path(args.out), args.format)
         print(f"Report written to {path}")

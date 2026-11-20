@@ -1,5 +1,7 @@
 # Benchmark `hearth_50` — policy `default`
 
+> **Not a measured result.** This report came from the `baseline` stand-in runner — no robot, no simulator, no learned policy. Every sub-goal succeeds by a random draw against hand-typed capability priors, so the success rate below is the product of those guesses, not evidence that any objective is met. The real number needs the Isaac Lab runner (Objective 4).
+
 - Tasks: **50**
 - Episodes (task x seed): **150**
 - Success rate (per episode): **90.0%**

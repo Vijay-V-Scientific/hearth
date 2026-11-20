@@ -53,6 +53,21 @@ def render_markdown(
     lines: list[str] = []
     lines.append(f"# Benchmark `{result.benchmark_id}` — policy `{result.policy_id}`")
     lines.append("")
+    # Honesty gate: only a run that actually drove the robot (in sim or on
+    # hardware) is a measurement. The mock and baseline runners draw every
+    # sub-goal from hand-typed priors, so the headline number must not be
+    # read as evidence that any objective is met.
+    if not bool(result.metadata.get("is_measurement", True)):
+        runner = result.metadata.get("runner", "unknown")
+        lines.append(
+            "> **Not a measured result.** This report came from the "
+            f"`{runner}` stand-in runner — no robot, no simulator, no learned "
+            "policy. Every sub-goal succeeds by a random draw against "
+            "hand-typed capability priors, so the success rate below is the "
+            "product of those guesses, not evidence that any objective is met. "
+            "The real number needs the Isaac Lab runner (Objective 4)."
+        )
+        lines.append("")
     lines.append(f"- Tasks: **{result.num_tasks}**")
     lines.append(f"- Episodes (task x seed): **{result.num_episodes}**")
     lines.append(f"- Success rate (per episode): **{result.success_rate() * 100:.1f}%**")
