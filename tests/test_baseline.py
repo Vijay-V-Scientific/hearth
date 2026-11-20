@@ -43,7 +43,13 @@ def test_runner_scores_planned_subgoals_not_positional_filler():
     assert res.task_id == task.id
     # One result per real sub-goal (5), not per placeholder (6).
     assert len(res.substeps) == res.metadata["planned_subgoals"]
-    assert res.metadata["planned_subgoals"] != task.num_substeps
+    # Scored exactly the planner's decomposition (the old bug scored the
+    # placeholder count positionally). Comparing to plan_task directly avoids a
+    # magic number that only happens to differ from the placeholder length.
+    from hearth.isaac.planner import plan_task
+
+    expected = plan_task(task.instruction, family=task.family.value).num_subgoals
+    assert res.metadata["planned_subgoals"] == expected
     assert res.success in (True, False)
     assert res.policy_id == "baseline_v0"
     # Every scored substep names the concrete sub-goal it evaluated.

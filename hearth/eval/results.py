@@ -115,11 +115,15 @@ def render_markdown(
         status = "✅" if passes >= 0.5 else "❌"
         episodes = f"{n_ok}/{n_runs}" if n_runs > 1 else ("success" if n_ok else "fail")
         if cfg.include_substeps:
-            # Real successful substeps (mean across runs), not num/num. The old
-            # code printed f"{num}/{num}" so a task that failed its first
-            # substep still read "8/8".
+            # Successful executed substeps / total executed substeps, both from
+            # the same runs so the two sides share a scale. The old code used the
+            # task's declared placeholder count as the denominator, so a runner
+            # whose planner emitted more sub-goals than the placeholder (a real
+            # multi-object plan) printed "11.0/7" on a failed row. The runner's
+            # plan length is deterministic, so it is constant across the group.
             mean_ok = sum(sum(1 for s in r.substeps if s.success) for r in group) / n_runs
-            detail = f"{mean_ok:.1f}/{t.num_substeps}"
+            n_exec = sum(len(r.substeps) for r in group) / n_runs
+            detail = f"{mean_ok:.1f}/{n_exec:.0f}"
         else:
             detail = "—"
         lines.append(

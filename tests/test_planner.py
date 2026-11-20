@@ -113,3 +113,22 @@ def test_kitchen_plan_opens_the_appliance():
     # part of the plan, not the whole plan.
     types = [s.type for s in r.subgoals]
     assert SubgoalType.GRASP in types and SubgoalType.PLACE in types
+
+
+def test_kitchen_grasps_items_not_the_appliance():
+    """'load the dishwasher with plates' must grasp the plates, not the dishwasher."""
+    r = plan_task("Clear the table and load the dishwasher with plates", SCENE, family="kitchen")
+    grasps = [s.payload for s in r.subgoals if s.type == SubgoalType.GRASP]
+    assert "plates" in grasps, grasps
+    assert "dishwasher" not in grasps, f"grasped the appliance itself: {grasps}"
+    opens = [s.payload for s in r.subgoals if s.type == SubgoalType.OPEN_ARTICULATED]
+    assert "dishwasher:open" in opens and "dishwasher:close" in opens, opens
+
+
+def test_multi_object_order_is_preserved():
+    """'the orange then the apple' must plan both, in that order (was: first only)."""
+    r = plan_task("Pick up the orange then the apple and put them away", SCENE)
+    grasps = [s.payload for s in r.subgoals if s.type == SubgoalType.GRASP]
+    assert grasps[:2] == ["orange", "apple"], grasps
+    # Pronoun 'them' must not become a grasp target.
+    assert all(g not in {"them", "it"} for g in grasps), grasps

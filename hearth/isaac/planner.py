@@ -141,10 +141,36 @@ def _extract_objects(instruction: str) -> list[str]:
         "the a an and then please could you would me my our to from in on "
         "of at it is are where which that this these those put get take "
         "bring fetch open close move carry pick up away clear load place "
-        "set down drop hand give into onto".split()
+        "set down drop hand give into onto with by for their there "
+        "them it this that these those everything something anything whatever".split()
     )
     kept = [w for w in words if w not in noise and len(w) > 2]
     return kept
+
+
+_APPLIANCE_WORDS = ("dishwasher", "fridge", "refrigerator", "microwave", "oven")
+
+
+def _is_appliance(word: str) -> bool:
+    """True if the noun names an appliance (the thing loaded into), not an item."""
+    return any(a in word for a in _APPLIANCE_WORDS)
+
+
+def _ordered_objects(instruction: str) -> list[str]:
+    """Objects in the order the instruction names them.
+
+    Splits on sequencing cues ("then", commas, "and") before extracting, so
+    "pick up the orange then the apple" yields [orange, apple] rather than
+    dropping the item after the conjunction (the old planner only ever used the
+    first extracted noun).
+    """
+    parts = re.split(r"\bthen\b|,|\band\b", (instruction or "").lower())
+    ordered: list[str] = []
+    for part in parts:
+        for o in _extract_objects(part):
+            if o not in ordered:
+                ordered.append(o)
+    return ordered or _extract_objects(instruction)
 
 
 def _resolve_room(instruction: str, scene: SceneSummary) -> Optional[str]:
@@ -170,7 +196,7 @@ def plan_task(
     """
     scene = scene or SceneSummary()
     fam = family or detect_family(instruction)
-    objects = _extract_objects(instruction)
+    objects = _ordered_objects(instruction)
     obj = objects[0] if objects else "object"
     target_room = _resolve_room(instruction, scene)
 
@@ -232,19 +258,32 @@ def plan_task(
         # and closed after — the docstring promises "(open) ... close" and the
         # old plan skipped both, so "load the dishwasher" never opened it.
         dest = target_room or "kitchen"
+        # The appliance is where items GO; the grasp target is the item being
+        # loaded ("load the dishwasher with plates" -> grasp plates, not the
+        # dishwasher). Pick the appliance from the named nouns, and grasp the
+        # rest in order.
+        appliance = next((o for o in objects if _is_appliance(o)), f"{dest}-appliance")
+        items = [o for o in objects if not _is_appliance(o)] or [obj]
         nav("robot" if target_room is None else target_room)
-        open_art(f"{dest}-appliance", "open")
-        grasp(obj)
-        carry(obj)
-        place(obj, dest)
-        open_art(f"{dest}-appliance", "close")
+        open_art(appliance, "open")
+        for it in items:
+            grasp(it)
+        carry(items[-1])
+        for it in items:
+            place(it, dest)
+        open_art(appliance, "close")
 
     else:  # tidying (also the fallback)
         dest = target_room or "storage"
+        items = objects or ["object"]
         nav("robot")
-        grasp(obj)
-        carry(obj)
-        place(obj, dest)
+        # Grasp and place every named object in the order it was asked for, so
+        # "the orange then the apple" is not reduced to just the first one.
+        for item in items:
+            grasp(item)
+        carry(items[-1])
+        for item in items:
+            place(item, dest)
 
     # Guarantee the brief's 5-15 sub-goal range.  Families above already
     # produce 4-5; pad with explicit approach/stabilise steps for longer
