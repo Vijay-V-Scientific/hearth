@@ -1,16 +1,14 @@
-"""Gate G1: spawn the Unitree G1 in Isaac Sim and check it holds a stance.
+"""Isaac integration smoke test for the Unitree G1 (NOT the G1 gate).
 
-Launches Isaac Lab headless, spawns a single Unitree G1 at its nominal standing
-pose on a ground plane, holds the default joint position with an implicit-PD
-position target for a few seconds of simulated time, and measures the base root
-height and tilt.
+This is a Foundations integration check: it boots Isaac Lab headless, imports
+and spawns the G1 USD with its full joint set, and steps real physics to
+confirm the asset loads and the pipeline runs with finite poses throughout.
 
-PASS (per Vijay) is the PIPELINE: the G1 USD imports, spawns with its joints,
-and steps real physics with finite poses throughout. Stance is *reported* but is
-not a pass criterion: a free-floating biped held at fixed joint angles is
-dynamically unbalanced and is expected to topple, so this check reports the
-observed base height / tilt honestly and defers true standing to the trained
-locomotion controller (Objective 1).
+It is explicitly NOT gate G1. Gate G1 is the sim-vs-real joint-replay RMSE < 3 deg
+test in hearth/sim2real/replay.py; standing/walking is Objective 1. A free
+biped held at fixed joint angles is dynamically unbalanced, so the observed
+base height / tilt is reported honestly (it topples) and is not a pass
+criterion here.
 
 Backend note: on this machine the PhysX backend's plugins fail to load (USD ABI
 mismatch), so the working physics backend is Newton/MJWarp; that is the default.
@@ -19,7 +17,7 @@ Run with the Isaac Lab environment (not the hearth venv):
 
     cd ~/projects/isaac-sim/IsaacLab && \
     VIRTUAL_ENV="$PWD/.venv" .venv/bin/isaaclab \
-        -p ~/projects/hearth/scripts/hearth_g1_stance.py \
+        -p ~/projects/hearth/scripts/hearth_g1_smoketest.py \
         --physics newton_mjwarp --steps 600
 """
 
