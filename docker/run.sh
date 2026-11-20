@@ -8,6 +8,10 @@ set -euo pipefail
 : "${HEADLESS:=1}"
 export HEADLESS
 
+# DISPLAY is unset on a headless host; under `set -u` referencing it crashes the
+# script before docker ever runs. Default it to empty.
+: "${DISPLAY:=}"
+
 # Build the image on first use.
 if ! docker image inspect hearth:isaac5 >/dev/null 2>&1; then
   echo "Building hearth:isaac5 (first run)..."

@@ -7,9 +7,6 @@ pyyaml>=6.0
 jsonschema>=4.20
 tqdm>=4.66
 loguru>=0.7
-torch>=2.4
-torchvision>=0.19
-jax[cpu]>=0.4.30
 matplotlib>=3.9
 # Scene USD authoring + parquet episode storage. Both are imported lazily
 # (hearth.scene.writer, hearth.data.storage) so the core package imports

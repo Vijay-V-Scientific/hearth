@@ -22,10 +22,6 @@ dependencies = [
     "jsonschema>=4.20",
     "tqdm>=4.66",
     "loguru>=0.7",
-    # ML (lightweight; torch installed separately for the right CUDA build)
-    "torch>=2.4",
-    "torchvision>=0.19",
-    "jax[cpu]>=0.4.30",
     # viz (cpu-only)
     "matplotlib>=3.9",
     # Scene USD authoring (hearth.scene.writer) + parquet episode storage
@@ -40,6 +36,14 @@ dependencies = [
 isaac = [
     "isaacsim>=5.0",
     "isaaclab>=0.3",
+]
+# ML backends. Nothing in hearth/ imports these (the eval/locomotion code is
+# Isaac-side); they are here for the training scripts that will use them. The
+# CUDA build of torch is installed separately, so they are not core deps.
+ml = [
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "jax[cpu]>=0.4.30",
 ]
 # Optional: ROS2 bridge (no real ROS2 package here — see hearth/deploy/ros2_bridge.py).
 ros2 = []

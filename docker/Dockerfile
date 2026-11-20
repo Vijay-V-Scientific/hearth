@@ -20,7 +20,7 @@
 #   * NVIDIA Container Toolkit installed and `nvidia-smi` works
 #   * Isaac Sim 5.x base image available locally or pullable
 #===========
-FROM isaacsim:5.0 AS base
+FROM nvcr.io/nvidia/isaac-sim:5.1.0 AS base
 
 # Non-root user for the container.
 ARG USER_ID=1000
@@ -30,16 +30,16 @@ RUN groupadd -g ${GROUP_ID} hearth && \
 
 WORKDIR /workspace
 
-# Install Python deps first (better layer caching) so the source can change
-# without rebuilding them.
+# Copy the declaration AND the package source before installing: an editable
+# install (`-e .`) builds against the package, so the source tree must already
+# be present when pip runs. The old order ran `pip install -e .` before copying
+# hearth/, so the install could not see the package it was installing.
 COPY pyproject.toml requirements*.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e .
-
-# Copy source last so source edits don't bust the dependency layers.
 COPY hearth ./hearth
 COPY configs ./configs
 COPY docker /workspace/docker
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -e .
 
 USER hearth
 
