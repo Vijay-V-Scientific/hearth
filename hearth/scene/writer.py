@@ -401,6 +401,11 @@ def write_usd(scene: Scene, path: str) -> str:
     _ensure_physics_scene(stage)
 
     root = stage.DefinePrim("/hearth_scene")
+    # A reference with an empty target path (what Isaac's UsdFileCfg writes at
+    # /World/Apartment) resolves to the referenced file's default prim. With no
+    # default prim the reference resolves to nothing and the apartment does not
+    # spawn, so mark /hearth_scene as the entry point.
+    stage.SetDefaultPrim(root)
     root.CreateAttribute("hearth_scene_id", Sdf.ValueTypeNames.String).Set(scene.metadata.scene_id)
     root.CreateAttribute("hearth_seed", Sdf.ValueTypeNames.Int).Set(scene.metadata.seed)
     root.CreateAttribute("hearth_num_rooms", Sdf.ValueTypeNames.Int).Set(scene.metadata.num_rooms)

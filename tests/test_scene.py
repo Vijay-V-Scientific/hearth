@@ -576,3 +576,18 @@ def test_slide_yaw_on_body_frame_would_snap():
         local_rot1=q,
     )
     assert abs(_frame_mismatch_deg(bad, bad.GetPrimAtPath("/slide")) - _wrap180(2 * yaw)) < 1e-2
+
+
+def test_write_usd_sets_default_prim():
+    """A bare reference to the file must pull in the apartment.
+
+    Isaac's UsdFileCfg emits a reference with an empty target path, which
+    resolves to the referenced file's default prim. Without one the apartment
+    never spawns at /World/Apartment, so /hearth_scene must be the default.
+    """
+    scene = generate_scene(ApartmentConfig(width=8.0, depth=6.0, seed=5))
+    path = write_usd(scene, "/tmp/hearth_defaultprim.usd")
+    stage = Usd.Stage.Open(path)
+    dp = stage.GetDefaultPrim()
+    assert dp.IsValid()
+    assert dp.GetPath().pathString == "/hearth_scene"
