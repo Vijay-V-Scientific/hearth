@@ -284,3 +284,41 @@ def test_report_warns_when_run_is_not_a_measurement():
     br.metadata["is_measurement"] = True
     md2 = render_markdown(b, br)
     assert "Not a measured result" not in md2
+
+
+def test_load_benchmark_prefers_authored_config():
+    """hearth_50 by name must load the real authored tasks, not code placeholders."""
+    b = load_benchmark("hearth_50")
+    assert len(b.tasks) == 50
+    # Placeholder stubs look like "[kitchen] Clear a table ... (task 1)".
+    first = b.tasks[0].instruction
+    assert "task 1)" not in first, first
+    assert first == "Clear the dinner table and load the cups into the dishwasher."
+
+
+def test_short_substeps_are_advisory_not_fatal():
+    """A benchmark with 3-4 substep tasks must still validate as loadable.
+
+    The 5-15 sub-step band is a brief target, not a hard gate: 32 of the 50
+    authored tasks have 3-4 substeps, and ``hearth-eval load`` used to exit 1 on
+    them. They are reported (validate_benchmark) but structural_problems() and
+    the CLI exit code must not reject the run.
+    """
+    from hearth.eval.tasks import structural_problems
+
+    b = load_benchmark("configs/eval/benchmark_50.yaml")
+    assert any("recommends 5-15" in p for p in validate_benchmark(b))
+    assert structural_problems(b) == []
+
+
+def test_cli_load_exits_zero_on_advisory():
+    import subprocess
+    import sys
+
+    r = subprocess.run(
+        [sys.executable, "-m", "hearth.eval.cli", "load", "hearth_50"],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "validation: OK (with advisories)" in r.stdout

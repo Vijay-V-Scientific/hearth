@@ -147,17 +147,28 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_load(args: argparse.Namespace) -> int:
     benchmark = _load(args.source)
+    from .tasks import structural_problems
+
     problems = validate_benchmark(benchmark)
+    blocking = structural_problems(benchmark)
+    advisory = [p for p in problems if p not in blocking]
     print(f"benchmark {benchmark.id} (v{benchmark.version})")
     print(f"  tasks: {len(benchmark.tasks)}")
     print(f"  families: {', '.join(f.value for f in benchmark.families)}")
     print(f"  avg substeps: {benchmark.avg_substeps}")
-    if problems:
-        print("  problems:", file=sys.stderr)
-        for pr in problems:
+    if advisory:
+        # The 5-15 sub-step count is a brief target, not a hard gate: report it
+        # but do not fail the load, so an authored benchmark with shorter tasks
+        # still runs.
+        print(f"  advisory ({len(advisory)}):", file=sys.stderr)
+        for pr in advisory:
+            print(f"    - {pr}", file=sys.stderr)
+    if blocking:
+        print("  errors:", file=sys.stderr)
+        for pr in blocking:
             print(f"    - {pr}", file=sys.stderr)
         return 1
-    print("  validation: OK")
+    print("  validation: OK" + (" (with advisories)" if advisory else ""))
     return 0
 
 

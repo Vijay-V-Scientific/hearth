@@ -111,6 +111,15 @@ class MockTaskRunner:
         )
 
 
+# Named benchmarks that also have an authored YAML config shipped in the repo.
+# load_benchmark() prefers the config when present (real instructions) and falls
+# back to the code builder otherwise. Paths are resolved from the repo root.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REFERENCE_CONFIGS: dict[str, Path] = {
+    "hearth_50": _REPO_ROOT / "configs" / "eval" / "benchmark_50.yaml",
+}
+
+
 def load_benchmark(source: str | Path) -> Benchmark:
     """Load a benchmark from a YAML file or a registered builder name.
 
@@ -120,6 +129,17 @@ def load_benchmark(source: str | Path) -> Benchmark:
     """
     name = str(source).strip()
     if name in BENCHMARK_BUILDERS:
+        # Prefer the authored benchmark config over the in-code placeholder
+        # builder when the file is present. The code builder emits generic
+        # "[kitchen] Clear a table ... (task 1)" stubs; configs/eval holds the
+        # real instructions and substeps. Without this, the CLI default silently
+        # scored placeholders while the real benchmark went unused.
+        authored = _REFERENCE_CONFIGS.get(name)
+        if authored is not None and authored.exists():
+            data = yaml.safe_load(authored.read_text())
+            benchmark = Benchmark.from_dict(data)
+            if benchmark.tasks:
+                return benchmark
         return get_builder(name)()
 
     path = Path(source)

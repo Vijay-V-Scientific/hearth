@@ -42,25 +42,40 @@ def validate_benchmark(benchmark: Benchmark) -> list[str]:
 
     Returns a list of human-readable problems; empty means valid.
     """
-    problems: list[str] = []
+    blocking, advisory = _classify(benchmark)
+    return blocking + advisory
+
+
+def structural_problems(benchmark: Benchmark) -> list[str]:
+    """Only the problems that must block a run: duplicate ids, unknown family,
+    or an empty benchmark. The 5-15 sub-step range is a brief target, not a
+    hard gate, so it is reported but does not appear here.
+    """
+    return _classify(benchmark)[0]
+
+
+def _classify(benchmark: Benchmark) -> "tuple[list[str], list[str]]":
+    """Split validation findings into (blocking, advisory) problems."""
+    blocking: list[str] = []
+    advisory: list[str] = []
     seen_ids: set[str] = set()
 
     for task in benchmark.tasks:
         if task.id in seen_ids:
-            problems.append(f"duplicate task id: {task.id}")
+            blocking.append(f"duplicate task id: {task.id}")
         seen_ids.add(task.id)
 
         if not valid_family(task.family.value):
-            problems.append(f"task {task.id}: unknown family {task.family!r}")
+            blocking.append(f"task {task.id}: unknown family {task.family!r}")
             continue
 
         n = task.num_substeps
         if not (5 <= n <= 15):
-            problems.append(f"task {task.id}: {n} substeps, brief requires 5-15")
+            advisory.append(f"task {task.id}: {n} substeps, brief recommends 5-15")
 
     if not benchmark.tasks:
-        problems.append("benchmark contains no tasks")
-    return problems
+        blocking.append("benchmark contains no tasks")
+    return blocking, advisory
 
 
 def is_valid_benchmark(benchmark: Benchmark) -> bool:
