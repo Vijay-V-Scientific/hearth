@@ -1,0 +1,4 @@
+20:[INFO] spawning G1 from https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/6.2/Isaac/IsaacLab/Robots/Unitree/G1/g1.usd
+21:[INFO] stage ready: 183 prims; robot prim valid = True
+22:[INFO] stepped 30 physics steps without error
+23:[RESULT] apartment=demo_apartment.usd rooms=3 seed=2026 prims=183 robot=g1 ok=true

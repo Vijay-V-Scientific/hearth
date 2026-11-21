@@ -33,3 +33,8 @@ data/episodes/
 *.h5
 *.hdf5
 *.lerobot/
+
+# Isaac / training run logs (regenerated every launch; keep only curated ones)
+logs/*
+!logs/demo_apartment.usd
+!logs/load_scene_result.txt
