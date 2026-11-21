@@ -84,6 +84,19 @@ def _subdivide(
         rooms.append(RoomConfig(name=name, size_x=lw, size_y=ld, origin_x=lx, origin_y=ly))
 
 
+def _rotated_extent(sx: float, sy: float, deg: float) -> tuple[float, float]:
+    """Axis-aligned bounding box ``(ex, ey)`` of a ``sx`` x ``sy`` box yawed by
+    ``deg`` degrees. Placing objects by this footprint (not the raw ``sx``/``sy``)
+    is what keeps a yawed object inside the walls and clear of its neighbours:
+    the four corners it sweeps are always within ``(ex, ey)``.
+    """
+    from math import cos, radians, sin
+
+    r = radians(deg)
+    c, s = abs(cos(r)), abs(sin(r))
+    return (sx * c + sy * s, sx * s + sy * c)
+
+
 def _place_in_room(
     rng: random.Random,
     room: RoomConfig,
@@ -91,15 +104,26 @@ def _place_in_room(
     fixed: bool,
     min_spacing: float,
     placed: list[tuple[float, float, float, float]],
-) -> tuple[float, float, float] | None:
-    """Rejection-sample a floor position in the room for ``category``.
+) -> tuple[float, float, float, float] | None:
+    """Rejection-sample a floor position *and yaw* for ``category``.
 
-    ``placed`` holds ``(cx, cy, sx, sy)`` boxes. Spacing is size-aware: a
-    candidate is rejected when its box overlaps a placed box or leaves less than
-    ``gap`` metres between their edges. The old check compared centre points
-    against a fixed spacing and ignored object size, so a 2 m sofa could sit on
-    top of a 0.3 m lamp. The returned ``z`` rests the box's base on the floor
-    (``z = sz / 2``) instead of burying half of it with the centre at ground.
+    The yaw is chosen BEFORE the position and the object is fitted to its
+    ROTATED footprint: the containment and neighbour tests use the axis-aligned
+    bounding box of the yawed box (``_rotated_extent``), so an object turned to
+    face into the room can no longer poke a corner through the wall it was
+    measured against, nor overlap a neighbour it only cleared in its unrotated
+    pose. (The old code measured the unrotated ``sx``/``sy`` but applied yaw
+    afterwards, so drawers and cabinets - which get a random yaw - could stick
+    out of the wall.) The old check also compared centre points against a fixed
+    spacing and ignored object size; that is fixed here with edge-to-edge tests.
+
+    ``placed`` holds ``(cx, cy, ex, ey)`` axis-aligned footprints (doorway
+    keep-clear zones and already-placed objects). A candidate is rejected when
+    its footprint overlaps one or leaves less than ``gap`` metres between their
+    edges. The returned ``z`` rests the base on the floor (``z = sz / 2``).
+
+    Returns:
+        ``(cx, cy, z, orientation_deg)`` or ``None`` if no spot was found.
     """
     size, _fixed = _TASK_OBJECTS.get(category, _PLACABLES.get(category, ((0.5, 0.5, 0.5), False)))
     sx, sy, sz = size
@@ -107,22 +131,28 @@ def _place_in_room(
     # but capped so large furniture in a small room still finds a spot (an
     # uncapped gap re-created the old "many rooms empty" failure).
     gap = min(min_spacing, 0.25)
+    margin = 0.1  # keep off the wall centreline; walls are drawn around the edge
     max_iter = 200
     for _ in range(max_iter):
-        cx = rng.uniform(room.origin_x + sx / 2 + 0.1, room.origin_x + room.size_x - sx / 2 - 0.1)
-        cy = rng.uniform(room.origin_y + sy / 2 + 0.1, room.origin_y + room.size_y - sy / 2 - 0.1)
-        if cx < room.origin_x + sx / 2 or cx > room.origin_x + room.size_x - sx / 2:
-            continue
-        if cy < room.origin_y + sy / 2 or cy > room.origin_y + room.size_y - sy / 2:
-            continue
+        # Choose the yaw first, then fit the box it sweeps.
+        orient = rng.uniform(0.0, 360.0) if category in ("drawer", "cabinet") else 0.0
+        ex, ey = _rotated_extent(sx, sy, orient)
+        lox = room.origin_x + ex / 2 + margin
+        hix = room.origin_x + room.size_x - ex / 2 - margin
+        loy = room.origin_y + ey / 2 + margin
+        hiy = room.origin_y + room.size_y - ey / 2 - margin
+        if lox > hix or loy > hiy:
+            continue  # this pose cannot fit the room; try another yaw
+        cx = rng.uniform(lox, hix)
+        cy = rng.uniform(loy, hiy)
         ok = True
-        for px, py, psx, psy in placed:
-            if abs(px - cx) < (sx + psx) / 2 + gap and abs(py - cy) < (sy + psy) / 2 + gap:
+        for px, py, pex, pey in placed:
+            if abs(px - cx) < (ex + pex) / 2 + gap and abs(py - cy) < (ey + pey) / 2 + gap:
                 ok = False
                 break
         if ok:
-            placed.append((cx, cy, sx, sy))
-            return (cx, cy, sz / 2)
+            placed.append((cx, cy, ex, ey))
+            return (cx, cy, sz / 2, orient)
     return None
 
 
@@ -271,10 +301,10 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
         room_i += 1
         category = rng.choice(list(_TASK_OBJECTS.keys()))
         fixed = _TASK_OBJECTS[category][1]
-        pos = _place_in_room(rng, room, category, fixed, cfg.min_object_spacing, placed_xy)
-        if pos is None:
+        spot = _place_in_room(rng, room, category, fixed, cfg.min_object_spacing, placed_xy)
+        if spot is None:
             continue
-        orient = rng.uniform(0, 360) if category in ("drawer", "cabinet") else 0.0
+        pos, orient = spot[:3], spot[3]
         size = _TASK_OBJECTS[category][0]
         placed.append(
             (
@@ -295,9 +325,10 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
         for _ in range(rng.randint(1, 4)):
             category = rng.choice(list(_PLACABLES.keys()))
             fixed = _PLACABLES[category][1]
-            pos = _place_in_room(rng, room, category, fixed, cfg.min_object_spacing, placed_xy)
-            if pos is None:
+            spot = _place_in_room(rng, room, category, fixed, cfg.min_object_spacing, placed_xy)
+            if spot is None:
                 continue
+            pos = spot[:3]
             size = _PLACABLES[category][0]
             placed.append(
                 (
