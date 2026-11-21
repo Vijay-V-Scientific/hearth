@@ -38,10 +38,26 @@ def _room_colour(name: str) -> tuple[float, float, float]:
     return _ROOM_COLOURS.get(name, (0.75, 0.75, 0.75))
 
 
-# Household furniture density (kg/m^3) for estimating rigid-body mass from a
-# bounding volume. Not measured per object; a sane non-zero mass is what a
-# physics sim needs so movable items are neither weightless nor immovable.
-_DENSITY_KG_M3 = 200.0
+# Approximate real-world mass (kg) per household category. NOT measured -
+# plausible reference values so a movable body is neither weightless nor
+# immovable. Mass is taken per category, NOT from bounding-box volume x
+# density: furniture is hollow (a 1.2x0.6x0.75 m table is mostly air; a solid
+# estimate at 200 kg/m^3 came out at 108 kg). Order-of-magnitude domestic
+# figures, to be replaced by CAD/vendor mass when real furniture is modelled.
+_CATEGORY_MASS_KG = {
+    "table": 20.0,
+    "chair": 5.0,
+    "drawer": 8.0,
+    "cabinet": 25.0,
+    "sofa": 45.0,
+    "plant": 8.0,
+    "rug": 3.0,
+    "lamp": 4.0,
+}
+# Last-resort density for categories not in the table (unknown placables, the
+# door leaf). "Mostly air and a frame", not solid wood, so an unmapped object
+# is not absurdly heavy.
+_GENERIC_DENSITY_KG_M3 = 70.0
 _MASS_CLAMP = (0.05, 500.0)
 _GRAVITY = (0.0, 0.0, -9.81)
 
@@ -65,7 +81,7 @@ def _ensure_physics_scene(stage) -> "Any":
     return prim
 
 
-def _apply_physics(prim, rigid: bool, volume: float = 1.0) -> None:
+def _apply_physics(prim, rigid: bool, volume: float = 1.0, category: str | None = None) -> None:
     """Make ``prim`` a solid collider; if ``rigid``, a dynamic rigid body too.
 
     Static geometry (floor, walls, bolted furniture) collides but does not move.
@@ -77,12 +93,20 @@ def _apply_physics(prim, rigid: bool, volume: float = 1.0) -> None:
     UsdPhysics.CollisionAPI.Apply(prim)
     if rigid:
         UsdPhysics.RigidBodyAPI.Apply(prim)
-        mass = min(_MASS_CLAMP[1], max(_MASS_CLAMP[0], volume * _DENSITY_KG_M3))
+        # Real-world mass where the category is known; furniture is hollow so
+        # volume x density is wrong. Fall back to a light generic density only
+        # for objects with no category (e.g. the door leaf).
+        mass = _CATEGORY_MASS_KG.get(category) if category else None
+        if mass is None:
+            mass = volume * _GENERIC_DENSITY_KG_M3
+        mass = min(_MASS_CLAMP[1], max(_MASS_CLAMP[0], mass))
         if not prim.HasAttribute("physics:mass"):
             prim.CreateAttribute("physics:mass", Sdf.ValueTypeNames.Float).Set(float(mass))
 
 
-def _make_box(stage, path: str, centre, size, colour, rigid: bool = False) -> "Any":
+def _make_box(
+    stage, path: str, centre, size, colour, rigid: bool = False, category: str | None = None
+) -> "Any":
     """Define a unit cube given a world-space centre and full extents.
 
     The cube is scaled from a unit (side 1, centred at the local origin) box,
@@ -106,7 +130,7 @@ def _make_box(stage, path: str, centre, size, colour, rigid: bool = False) -> "A
     xform.AddScaleOp().Set(Gf.Vec3f(*size))
 
     sx, sy, sz = (float(v) for v in size)
-    _apply_physics(cube.GetPrim(), rigid=rigid, volume=sx * sy * sz)
+    _apply_physics(cube.GetPrim(), rigid=rigid, volume=sx * sy * sz, category=category)
     return cube
 
 
@@ -337,6 +361,7 @@ def _write_object(stage, obj_path, category, config) -> None:
         (float(sx), float(sy), float(sz)),
         _OBJECT_DISPLAY,
         rigid=not config.fixed or category in _SLIDING_CATEGORIES,
+        category=category,
     )
 
     prim = box.GetPrim()
