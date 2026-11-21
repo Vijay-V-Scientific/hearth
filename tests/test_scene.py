@@ -370,3 +370,65 @@ def test_furniture_kept_clear_of_doorways():
                 near += 1
     frac = near / total
     assert frac < 0.15, f"{frac:.0%} of furniture still crowds a doorway (was ~33%)"
+
+
+def test_write_usd_articulates_doors_and_drawers(tmp_path):
+    # Doors and drawers are now real joints, not inert boxes: every doorway
+    # gets a revolute door-hinge (vertical Z pivot with enabled limits) and
+    # every drawer/cabinet gets a prismatic slide. This is what makes the
+    # articulated-object task family (Objective 2) possible at all — an inert
+    # door can only be walked through, never pushed or pulled open.
+    from pxr import Usd, UsdPhysics  # noqa: F401
+
+    cfg = ApartmentConfig(width=9.0, depth=7.0, room_count=3, seed=7)
+    out = tmp_path / "joints.usd"
+    s = generate_scene(cfg)
+    write_usd(s, str(out))
+    stage = Usd.Stage.Open(str(out))
+
+    n_slide = sum(1 for cat, _ in s.objects if cat in ("drawer", "cabinet"))
+    assert n_slide > 0 and len(s.doorways) > 0, "scene has nothing to articulate"
+
+    revolute, prismatic = [], []
+    for ch in stage.GetPrimAtPath("/hearth_scene/joints").GetChildren():
+        if ch.GetTypeName() == "PhysicsRevoluteJoint":
+            revolute.append(ch)
+        elif ch.GetTypeName() == "PhysicsPrismaticJoint":
+            prismatic.append(ch)
+    assert len(revolute) == len(s.doorways), "one revolute joint per doorway"
+    assert len(prismatic) == n_slide, "one prismatic joint per drawer/cabinet"
+
+    leaf_paths = set()
+
+    def walk(p):
+        if p.GetName().startswith("door_"):
+            leaf_paths.add(p.GetPath().pathString)
+        for c in p.GetChildren():
+            walk(c)
+
+    walk(stage.GetPseudoRoot())
+
+    for j in revolute:
+        b1 = list(j.GetRelationship("physics:body1").GetTargets())
+        assert len(b1) == 1
+        assert str(b1[0]) in leaf_paths
+        assert j.GetAttribute("physics:axis").Get() == "Z"
+        assert j.GetAttribute("physics:lowerLimit").Get() == 0.0
+        assert j.GetAttribute("physics:upperLimit").Get() > 0.0
+        assert j.GetAttribute("limit:angular:limitEnabled").Get() is True
+
+    obj_paths = {
+        c.GetPath().pathString for c in stage.GetPrimAtPath("/hearth_scene/objects").GetChildren()
+    }
+    for j in prismatic:
+        b1 = list(j.GetRelationship("physics:body1").GetTargets())
+        assert len(b1) == 1
+        assert str(b1[0]) in obj_paths
+        assert j.GetAttribute("physics:lowerLimit").Get() == 0.0
+        assert j.GetAttribute("physics:upperLimit").Get() > 0.0
+        assert j.GetAttribute("limit:prismatic:limitEnabled").Get() is True
+
+    # Sliding bodies are driven, so they must be rigid bodies now.
+    for obj in stage.GetPrimAtPath("/hearth_scene/objects").GetChildren():
+        if obj.GetAttribute("hearth_category").Get() in ("drawer", "cabinet"):
+            assert obj.HasAPI(UsdPhysics.RigidBodyAPI)

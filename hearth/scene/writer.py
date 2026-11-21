@@ -127,6 +127,74 @@ def _split_span(lo: float, hi: float, gaps: list[tuple[float, float]]) -> list[t
 _DOOR_HEIGHT = 2.1
 _DOOR_LEAF_COLOUR = (0.45, 0.3, 0.15)
 
+# Articulation travel. A real interior door swings 0..~95 deg; a drawer slides
+# out about its own depth. Kept as data so the joints and the tests read one
+# source of truth. Not measured; plausible fixture values for the sim.
+_DOOR_SWING_DEG = 95.0
+_DRAWER_TRAVEL_M = 0.45
+# Categories modelled as a slide-out container: the box gets a prismatic slide
+# against a static anchor along its (yaw-rotated) front axis, so opening is a
+# physical DOF rather than a scripted animation. We keep one box per object
+# (a full model would split a cabinet carcass from its drawer fronts).
+_SLIDING_CATEGORIES = ("drawer", "cabinet")
+# Top-level container for static anchors and joints, kept out of the room and
+# object trees so the doorway/furniture walkers see only the furniture itself.
+_JOINTS_ROOT = "/hearth_scene/joints"
+
+
+def _static_anchor(stage, path, position) -> "Any":
+    """A static (non-rigid, invisible) Xform used as a joint's body0 anchor.
+
+    With no rigid body, the PhysX/USD converter fixes the mating joint to the
+    world, so a door hinge or drawer slide anchored to one stays put while the
+    other body moves along the one free axis.
+    """
+    from pxr import Gf, UsdGeom
+
+    xf = UsdGeom.Xform.Define(stage, path)
+    xf.CreateVisibilityAttr().Set(UsdGeom.Tokens.invisible)
+    xform = UsdGeom.Xformable(xf)
+    xform.ClearXformOpOrder()
+    xform.AddTranslateOp().Set(Gf.Vec3d(*position))
+    return xf.GetPrim()
+
+
+def _add_joint(
+    stage,
+    path,
+    kind,
+    body0_path,
+    body1_path,
+    axis,
+    lower,
+    upper,
+    local_pos1=(0.0, 0.0, 0.0),
+    local_rot1=None,
+) -> "Any":
+    """Author a PhysX revolute or prismatic joint with enabled limits.
+
+    ``axis`` is a joint-frame token ("X"/"Y"/"Z"); limits are degrees
+    (revolute) or metres (prismatic) and are switched on through the custom
+    ``limit:<angular|prismatic>:limitEnabled`` attr, which this usd-core build
+    round-trips even though it is not a schema attribute.
+    """
+    from pxr import Gf, Sdf, UsdPhysics
+
+    cls = UsdPhysics.RevoluteJoint if kind == "revolute" else UsdPhysics.PrismaticJoint
+    j = cls.Define(stage, path)
+    j.CreateBody0Rel().SetTargets([body0_path])
+    j.CreateBody1Rel().SetTargets([body1_path])
+    j.CreateAxisAttr().Set(axis)
+    j.CreateLocalPos0Attr().Set(Gf.Vec3f(0.0, 0.0, 0.0))
+    j.CreateLocalPos1Attr().Set(Gf.Vec3f(*local_pos1))
+    j.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+    j.CreateLocalRot1Attr().Set(Gf.Quatf(1.0) if local_rot1 is None else local_rot1)
+    j.CreateLowerLimitAttr().Set(float(lower))
+    j.CreateUpperLimitAttr().Set(float(upper))
+    en = "limit:angular:limitEnabled" if kind == "revolute" else "limit:prismatic:limitEnabled"
+    j.GetPrim().CreateAttribute(en, Sdf.ValueTypeNames.Bool).Set(True)
+    return j.GetPrim()
+
 
 def _wall_gaps_for(doorways, room_index, axis: str, edge: float):
     """Doorways whose opening lies on this wall plane.
@@ -214,9 +282,29 @@ def _write_room(stage, room_path, room, colour, index, doorways) -> None:
                 centre,
                 size,
                 _DOOR_LEAF_COLOUR,
+                rigid=True,
             )
+            leaf_path = leaf.GetPrim().GetPath().pathString
             leaf.GetPrim().CreateAttribute("hearth_doorway", Sdf.ValueTypeNames.String).Set(
                 "closed"
+            )
+            # Articulate the leaf as a vertical pivot door (revolute about world
+            # Z through the leaf centre). Gravity is perpendicular to the swing
+            # axis, so the leaf rests closed with no drive and stays push-openable;
+            # the enabled limits keep it off the wall. (A jamb hinge with an
+            # offset hinge line is a refinement pending confirmation of the Isaac
+            # joint-frame convention.)
+            tag = f"{name}_{int(gs * 1000)}"
+            anchor = _static_anchor(stage, f"{_JOINTS_ROOT}/anchor_door_{tag}", centre)
+            _add_joint(
+                stage,
+                f"{_JOINTS_ROOT}/hinge_door_{tag}",
+                "revolute",
+                anchor.GetPath().pathString,
+                leaf_path,
+                "Z",
+                0.0,
+                _DOOR_SWING_DEG,
             )
 
 
@@ -243,7 +331,7 @@ def _write_object(stage, obj_path, category, config) -> None:
         (float(x), float(y), float(z)),
         (float(sx), float(sy), float(sz)),
         _OBJECT_DISPLAY,
-        rigid=not config.fixed,
+        rigid=not config.fixed or category in _SLIDING_CATEGORIES,
     )
 
     prim = box.GetPrim()
@@ -262,6 +350,30 @@ def _write_object(stage, obj_path, category, config) -> None:
     # Task-object marker.
     if config.task_relevant:
         prim.CreateAttribute("hearth_task_object", Sdf.ValueTypeNames.String).Set(category)
+    # Drawer / cabinet: a prismatic slide against a static anchor along the
+    # box's front (local +Y) axis, yawed to the object's orientation so the slide
+    # points out of the front face. The axis is horizontal, hence gravity-neutral:
+    # the drawer stays closed with no drive and pushes open.
+    if category in _SLIDING_CATEGORIES:
+        import math
+
+        from pxr import Gf
+
+        yaw = math.radians(float(config.orientation_deg))
+        q = Gf.Quatf(math.cos(yaw / 2.0), Gf.Vec3f(0.0, 0.0, math.sin(yaw / 2.0)))
+        tag = obj_path.rsplit("/", 1)[-1]
+        anchor = _static_anchor(stage, f"{_JOINTS_ROOT}/anchor_{tag}", (x, y, z))
+        _add_joint(
+            stage,
+            f"{_JOINTS_ROOT}/slide_{tag}",
+            "prismatic",
+            anchor.GetPath().pathString,
+            obj_path,
+            "Y",
+            0.0,
+            _DRAWER_TRAVEL_M,
+            local_rot1=q,
+        )
 
 
 def write_usd(scene: Scene, path: str) -> str:
@@ -297,6 +409,7 @@ def write_usd(scene: Scene, path: str) -> str:
         scene.metadata.num_task_objects
     )
 
+    stage.DefinePrim(_JOINTS_ROOT)
     stage.DefinePrim("/hearth_scene/rooms")
     for i, room in enumerate(scene.rooms):
         # Unique prim path per room: same-typed rooms (e.g. two "kitchen"s)
