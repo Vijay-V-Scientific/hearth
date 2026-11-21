@@ -1,0 +1,33 @@
+Project HEARTH - Objective 1: RSL-RL PPO velocity-locomotion run
+
+Status: PIPELINE VERIFIED. Not a trained gait. The run was deliberately
+capped at 100 iterations (this task defaults to 1500 flat / 5000 rough)
+to prove the whole Isaac Lab -> RSL-RL stack trains end-to-end on this
+machine and writes checkpoints. A walkable policy is a multi-hour run.
+
+Command (run from ~/projects/isaac-sim/IsaacLab):
+  uv run isaaclab -p scripts/reinforcement_learning/train.py \
+    --task Isaac-Velocity-Flat-G1 --num_envs 1024 --max_iterations 100 \
+    --livestream 0 --seed 10124
+
+Measured (from logs/ppo_velocity.log):
+  wall time ................ 62.68 s for 100 iterations
+  environments ............. 1024 parallel
+  iteration time ........... ~0.38 s
+  Mean episode length ...... 15.44 (iter 0)  -> 51.56 (iter 99)   # up = progress
+  Mean reward .............. -1.93 (iter 0)  -> -5.00 (iter 99)   # see note
+  base vel error (xy) ...... 0.918 (iter 0)  -> 1.049 (iter 99)
+
+Note on the "negative" reward curve: iteration 0's higher mean reward is
+over 15-step episodes that terminate almost immediately, before the
+orientation / slip / velocity-penalty terms have time to accumulate. As
+the policy stops face-planting, episodes lengthen ~3.3x and the penalty
+bill shows up. Longer survival on a negative-return curve is the normal
+early-training signature, NOT a failure.
+
+Checkpoints saved (IsaacLab/logs/rsl_rl/g1_flat/2026-11-21_06-40-15/):
+  model_0.pt  model_50.pt  model_99.pt
+
+Reproduce a longer run (e.g. 1500 iterations) with the same command and
+--max_iterations 1500; expect on the order of 10 minutes for flat-G1 at
+1024 envs on this RTX 5090.

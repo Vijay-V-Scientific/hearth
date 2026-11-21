@@ -39,3 +39,4 @@ logs/*
 !logs/demo_apartment.usd
 !logs/load_scene_result.txt
 !logs/locomotion_result.txt
+!logs/ppo_velocity_result.txt
