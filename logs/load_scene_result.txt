@@ -1,4 +1,26 @@
-20:[INFO] spawning G1 from https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/6.2/Isaac/IsaacLab/Robots/Unitree/G1/g1.usd
-21:[INFO] stage ready: 183 prims; robot prim valid = True
-22:[INFO] stepped 30 physics steps without error
-23:[RESULT] apartment=demo_apartment.usd rooms=3 seed=2026 prims=183 robot=g1 ok=true
+Project HEARTH - load one generated apartment + Unitree G1 in Isaac Sim
+
+Verified 2026-11-21 against the writer AFTER two fixes:
+  * 62b6af0  stage default prim set to /hearth_scene (a bare reference from
+             Isaac previously resolved to nothing -> apartment_prims=0)
+  * cd15898  load-test `ok` is DERIVED from measured apartment content
+             (room prims under /World/Apartment), not hardcoded
+
+Command (run from ~/projects/isaac-sim/IsaacLab, hearth on PYTHONPATH):
+  uv run isaaclab -p /home/vijay/projects/hearth/scripts/hearth_load_scene.py \
+    --livestream 0 --device cuda:0 --robot g1
+
+Measured (logs/load_scene_g1.log):
+  stage ready .............. 230 prims
+  apartment subtree ........ 47 prims across 30 room prims (rooms=3, seed=2026)
+  robot prim valid ......... True   (spawned from Isaac Lab G1 g1.usd)
+  physics .................. stepped 30 steps without error
+  RESULT ................... apartment_prims=47 apartment_rooms=30 robot=g1 ok=true
+
+Honest caveats:
+  * PhysX emits a NON-FATAL "CUDA error: out of memory ... mGpuContactPairsDev"
+    at GPU tensor init. It ran concurrently with the TLP model process holding
+    ~22/24.4 GiB and still loaded, stepped and cleared. So it is non-fatal, but
+    under this memory pressure PhysX is close to the edge.
+  * This proves the SCENE and ROBOT co-load and step under physics. It is not a
+    policy or a task result.

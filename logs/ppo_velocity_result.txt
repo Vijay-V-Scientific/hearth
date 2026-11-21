@@ -1,33 +1,36 @@
-Project HEARTH - Objective 1: RSL-RL PPO velocity-locomotion run
+Project HEARTH - Objective 1: RSL-RL PPO velocity-locomotion (flat G1)
 
-Status: PIPELINE VERIFIED. Not a trained gait. The run was deliberately
-capped at 100 iterations (this task defaults to 1500 flat / 5000 rough)
-to prove the whole Isaac Lab -> RSL-RL stack trains end-to-end on this
-machine and writes checkpoints. A walkable policy is a multi-hour run.
+Status: TRAINED, BUT UNDERTRAINED FOR THE SPEC. The whole Isaac Lab -> RSL-RL
+stack trains end-to-end and writes checkpoints on this machine while the TLP
+model process also holds the GPU. The policy learned to STAY UPRIGHT and
+shuffle; it has NOT reached clean velocity tracking. Objective 1's 0.0-1.5 m/s
+numbers are not met by this run.
 
 Command (run from ~/projects/isaac-sim/IsaacLab):
   uv run isaaclab -p scripts/reinforcement_learning/train.py \
-    --task Isaac-Velocity-Flat-G1 --num_envs 1024 --max_iterations 100 \
+    --task Isaac-Velocity-Flat-G1 --num_envs 256 --max_iterations 1500 \
     --livestream 0 --seed 10124
+  (num_envs dropped 1024 -> 256 so it fits in the GPU headroom left alongside
+   the TLP model process; --agent must NOT be passed, it breaks the registry.)
 
-Measured (from logs/ppo_velocity.log):
-  wall time ................ 62.68 s for 100 iterations
-  environments ............. 1024 parallel
-  iteration time ........... ~0.38 s
-  Mean episode length ...... 15.44 (iter 0)  -> 51.56 (iter 99)   # up = progress
-  Mean reward .............. -1.93 (iter 0)  -> -5.00 (iter 99)   # see note
-  base vel error (xy) ...... 0.918 (iter 0)  -> 1.049 (iter 99)
+Measured at iteration 1499 (logs/ppo_velocity_1500.log):
+  wall time ................ 491.6 s (~8 min) for 1500 iters at 256 envs
+  Mean reward .............. -7.05
+  Mean episode length ...... 820.58  (long -> mostly survives the 1000-step cap)
+  Episode_Termination ...... time_out 0.703  base_contact 0.297
+                             (=> ~30% still fall over; not <1 fall / 1000 m)
+  success_rate ............. 0.0000
+  base vel error xy ........ 0.5719 m/s      (spec target is near-zero tracking)
+  base vel error yaw ....... 2.7102 rad/s    (turn-rate tracking is poor)
+  track_lin_vel_xy_exp ..... 0.319 (forward-tracking reward is positive:
+                             some velocity IS being followed, weakly)
 
-Note on the "negative" reward curve: iteration 0's higher mean reward is
-over 15-step episodes that terminate almost immediately, before the
-orientation / slip / velocity-penalty terms have time to accumulate. As
-the policy stops face-planting, episodes lengthen ~3.3x and the penalty
-bill shows up. Longer survival on a negative-return curve is the normal
-early-training signature, NOT a failure.
+Read: episode length 820 and 70% time-outs mean posture control worked - the
+G1 holds itself up and moves. But success_rate 0 and 0.57 m/s xy error say the
+velocity command is only loosely followed, and 30% base-contact terminations
+say it is not yet a robust gait. More compute (more envs / more iterations,
+ideally with the GPU free) is needed, plus the spec's push-recovery and step-
+climb terrain, before Objective 1 can be claimed.
 
-Checkpoints saved (IsaacLab/logs/rsl_rl/g1_flat/2026-11-21_06-40-15/):
-  model_0.pt  model_50.pt  model_99.pt
-
-Reproduce a longer run (e.g. 1500 iterations) with the same command and
---max_iterations 1500; expect on the order of 10 minutes for flat-G1 at
-1024 envs on this RTX 5090.
+Checkpoints (IsaacLab/logs/rsl_rl/g1_flat/2026-11-21_21-57-43/):
+  model_0.pt ... model_1499.pt (every 50)
