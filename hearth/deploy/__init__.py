@@ -4,7 +4,7 @@ This package contains the pieces needed to move a policy trained in
 Isaac Sim to a physical humanoid, and to keep running it over a ROS 2
 bridge. The heavy runtime (Isaac Sim, ROS 2, device drivers) lives
 outside this environment; every entry point raises ``NotImplementedError``
-until a GPU + Isaac Sim 5.x container is available.
+until a GPU + Isaac Sim 6.2 container is available.
 
 Two importable, testable units:
 

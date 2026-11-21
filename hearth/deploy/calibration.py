@@ -13,7 +13,7 @@ The sim-to-real gap is where most policies fail. This module provides:
   the residuals after calibration.
 
 All runtime (Isaac Sim, real robot) work raises ``NotImplementedError``
-until a GPU + Isaac Sim 5.x container is present. The math and the
+until a GPU + Isaac Sim 6.2 container is present. The math and the
 state management are importable and tested without a GPU.
 """
 

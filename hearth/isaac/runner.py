@@ -65,7 +65,7 @@ class IsaacLabRunner:
         #   5. evaluate success per task.families / task.metrics
         #   6. return TaskResult(...)
         raise NotImplementedError(
-            "Isaac Lab runtime requires a GPU + Isaac Sim 5.x container. "
+            "Isaac Lab runtime requires a GPU + Isaac Sim 6.2 container. "
             "The TaskRunner contract is fixed; the body runs only inside the "
             "isaacsim/isaaclab runtime."
         )
@@ -97,7 +97,7 @@ def _require_isaac_runtime() -> None:
     """
 
     raise NotImplementedError(
-        "Isaac Lab runtime requires a GPU + Isaac Sim 5.x container. "
+        "Isaac Lab runtime requires a GPU + Isaac Sim 6.2 container. "
         "This body runs only inside the isaacsim/isaaclab runtime, not on host."
     )
 
