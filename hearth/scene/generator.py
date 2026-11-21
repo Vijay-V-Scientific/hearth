@@ -186,6 +186,27 @@ def _generate_doorways(rooms: list[RoomConfig], rng: random.Random) -> list[Door
     return doorways
 
 
+# Clear floor (metres) kept free in front of each opening so the robot can
+# reach and swing the leaf without furniture parked in the threshold.
+_DOOR_KEEP_CLEAR = 0.75
+
+
+def _doorway_keep_clear(dw: Doorway) -> list[tuple[float, float, float, float]]:
+    """Floor rectangles (cx, cy, sx, sy) held clear on each side of an opening.
+
+    Returned boxes are added to the placement reservations so rejection sampling
+    never drops furniture into a doorway or its approach zone. Depth is
+    ``_DOOR_KEEP_CLEAR`` from each wall face, width the opening width.
+    """
+    mid = (dw.along_start + dw.along_end) / 2.0
+    span = dw.along_end - dw.along_start
+    d = _DOOR_KEEP_CLEAR
+    off = d / 2 + 0.05  # start the zone at the wall face, not its centre
+    if dw.axis == "x":
+        return [(dw.fixed - off, mid, d, span), (dw.fixed + off, mid, d, span)]
+    return [(mid, dw.fixed - off, span, d), (mid, dw.fixed + off, span, d)]
+
+
 def generate_scene(cfg: ApartmentConfig) -> Scene:
     """Generate a Scene from an ApartmentConfig.
 
@@ -232,9 +253,17 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
 
     total_area = cfg.width * cfg.depth
 
+    # Doorways are cut BEFORE furniture so each opening and the floor the robot
+    # needs to reach it are reserved. The old order placed every object first and
+    # added doorways afterwards, leaving about a third of the furniture parked
+    # against an opening (nothing avoided the doorway plane).
+    doorways = _generate_doorways(rooms, rng)
+
     # 2. Place task-relevant objects first (spread across rooms).
     placed: list[tuple[str, ObjectConfig]] = []
     placed_xy: list[tuple[float, float, float, float]] = []
+    for dw in doorways:
+        placed_xy.extend(_doorway_keep_clear(dw))
     task_budget = cfg.task_objects_per_scene
     room_i = 0
     while len(placed) < task_budget and rooms:
@@ -294,5 +323,4 @@ def generate_scene(cfg: ApartmentConfig) -> Scene:
         num_task_objects=num_task,
     )
 
-    doorways = _generate_doorways(rooms, rng)
     return Scene(rooms=rooms, objects=placed, doorways=doorways, metadata=metadata)

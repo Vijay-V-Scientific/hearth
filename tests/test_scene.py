@@ -325,3 +325,48 @@ def test_scene_objects_do_not_overlap():
                     and abs(zi - zj) < (szi + szj) / 2 - 1e-9
                 )
                 assert not inter, f"overlap in seed {seed}: {boxes[i]} vs {boxes[j]}"
+
+
+def _box_door_gap(cx, cy, sx, sy, dw):
+    """Shortest distance from an object's floor box to a doorway opening."""
+    hl = (dw.along_end - dw.along_start) / 2
+    mid = (dw.along_start + dw.along_end) / 2
+
+    def gap1d(a_lo, a_hi, b_lo, b_hi):
+        if a_hi < b_lo:
+            return b_lo - a_hi
+        if b_hi < a_lo:
+            return a_lo - b_hi
+        return 0.0
+
+    if dw.axis == "x":
+        gx = gap1d(cx - sx / 2, cx + sx / 2, dw.fixed - 0.05, dw.fixed + 0.05)
+        gy = gap1d(cy - sy / 2, cy + sy / 2, mid - hl, mid + hl)
+    else:
+        gx = gap1d(cx - sx / 2, cx + sx / 2, mid - hl, mid + hl)
+        gy = gap1d(cy - sy / 2, cy + sy / 2, dw.fixed - 0.05, dw.fixed + 0.05)
+    return (gx * gx + gy * gy) ** 0.5
+
+
+def test_furniture_kept_clear_of_doorways():
+    """No furniture sits in an opening, and few pieces crowd its approach.
+
+    The generator used to place every object before cutting doorways, so about a
+    third of the furniture landed within 0.6 m of an opening and some sat right
+    on the threshold. Doorways are now cut first and a keep-clear zone reserved.
+    """
+    near = total = 0
+    for seed in range(30):
+        sc = generate_scene(ApartmentConfig(room_count=3, seed=seed))
+        for _cat, o in sc.objects:
+            total += 1
+            gaps = [
+                _box_door_gap(o.position[0], o.position[1], o.size[0], o.size[1], dw)
+                for dw in sc.doorways
+            ]
+            d = min(gaps)
+            assert d >= 1e-3, f"object in an opening: scene {seed} d={d:.3f}"
+            if d < 0.6:
+                near += 1
+    frac = near / total
+    assert frac < 0.15, f"{frac:.0%} of furniture still crowds a doorway (was ~33%)"
