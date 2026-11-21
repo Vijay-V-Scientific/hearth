@@ -217,8 +217,17 @@ def _generate_doorways(rooms: list[RoomConfig], rng: random.Random) -> list[Door
 
 
 # Clear floor (metres) kept free in front of each opening so the robot can
-# reach and swing the leaf without furniture parked in the threshold.
-_DOOR_KEEP_CLEAR = 0.75
+# reach and swing the leaf without furniture parked in the threshold. The zone
+# must also be at least as deep as the door leaf swings out: the leaf is hinged
+# at the opening centre, so when it opens its tip reaches half the opening width
+# (span / 2) perpendicular to the wall. Depth is therefore derived from the leaf
+# swing (``_doorway_keep_clear``), not a fixed number a wider door could
+# outgrow; ``_DOOR_APPROACH_MIN`` is the floor of that (enough to stand at the
+# threshold and reach through) and the margin keeps the swinging leaf clear of
+# any furniture placed at the zone edge.
+_DOOR_SWING_MARGIN = 0.30
+_DOOR_APPROACH_MIN = 0.75
+_DOOR_KEEP_CLEAR = _DOOR_APPROACH_MIN
 
 
 def _doorway_keep_clear(dw: Doorway) -> list[tuple[float, float, float, float]]:
@@ -230,7 +239,13 @@ def _doorway_keep_clear(dw: Doorway) -> list[tuple[float, float, float, float]]:
     """
     mid = (dw.along_start + dw.along_end) / 2.0
     span = dw.along_end - dw.along_start
-    d = _DOOR_KEEP_CLEAR
+    # Depth must cover the leaf: hinged at the opening centre, its tip reaches
+    # span / 2 perpendicular to the wall when it swings. Take the larger of that
+    # and the approach minimum, plus a margin, so a wide (or widened) door can
+    # never leave the leaf hitting furniture the clearance was measured for.
+    swing_reach = span / 2.0
+    d = max(_DOOR_KEEP_CLEAR, swing_reach + _DOOR_SWING_MARGIN)
+    assert d >= swing_reach, "keep-clear must always cover the leaf swing"
     off = d / 2 + 0.05  # start the zone at the wall face, not its centre
     if dw.axis == "x":
         return [(dw.fixed - off, mid, d, span), (dw.fixed + off, mid, d, span)]
