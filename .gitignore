@@ -38,3 +38,4 @@ data/episodes/
 logs/*
 !logs/demo_apartment.usd
 !logs/load_scene_result.txt
+!logs/locomotion_result.txt

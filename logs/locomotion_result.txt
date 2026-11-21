@@ -1,0 +1,3 @@
+207:[INFO] reset: obs shape torch.Size([1, 123])
+209:[INFO] stepped 50 env steps | reward=-0.0218 finite=True terminated=0 base_z 0.740->0.728
+210:[RESULT] task=Isaac-Velocity-Flat-G1 envs=1 steps=50 action_dim=37 base_z_end=0.728 ok=true
