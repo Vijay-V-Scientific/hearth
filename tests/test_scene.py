@@ -1,6 +1,9 @@
 """Tests for the procedural scene generator and USD writer (pxr available)."""
 
+import math
+
 import pytest
+from pxr import Gf, Usd, UsdGeom
 
 from hearth.scene import (
     ApartmentConfig,
@@ -8,6 +11,7 @@ from hearth.scene import (
     write_usd,
     write_usd_from_config,
 )
+from hearth.scene.writer import _add_joint, _static_anchor
 
 
 def test_scene_is_deterministic_given_seed():
@@ -432,3 +436,143 @@ def test_write_usd_articulates_doors_and_drawers(tmp_path):
     for obj in stage.GetPrimAtPath("/hearth_scene/objects").GetChildren():
         if obj.GetAttribute("hearth_category").Get() in ("drawer", "cabinet"):
             assert obj.HasAPI(UsdPhysics.RigidBodyAPI)
+
+
+# ---- articulated-joint rest-frame correctness -----------------------------
+#
+# A USD/PhysX joint is at zero initial error when its two mating joint frames
+# coincide:  body0Global * (localPos0, localRot0) == body1Global *
+# (localPos1, localRot1).  With both bodies placed at the same origin and
+# localPos* == 0 this reduces to a pure orientation condition
+#     R_anchor * localRot0 == R_body * localRot1.
+# The static anchors carry no rotation (R_anchor = I) and a cabinet's rigid
+# orientation is its rotate-Z op, so a yawed cabinet slides correctly only if
+# localRot0 = Rz(yaw) and localRot1 = I.  The first cut of the slide put the
+# yaw on localRot1 instead, which leaves the joint 2*yaw from rest (a snap at
+# startup).  These tests lock the convention in.
+
+
+def _rigid_rot(prim: "Usd.Prim") -> "list[list[float]]":
+    """Rotation part of a prim's rigid transform, composing only its rotate ops.
+
+    A rigid body's pose carries no scale, so the collider's non-uniform scale
+    (used by _make_box to size the unit cube) must be ignored here -- reading
+    it back out of GetLocalTransformation() returns a skewed matrix.
+    """
+    import numpy as np
+
+    R = np.eye(3)
+    for op in UsdGeom.Xformable(prim).GetOrderedXformOps():
+        t = op.GetOpType()
+        if t == UsdGeom.XformOp.TypeRotateZ:
+            a = math.radians(float(op.Get()))
+            c, s = math.cos(a), math.sin(a)
+            R = R @ np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+        elif t == UsdGeom.XformOp.TypeRotateX:
+            a = math.radians(float(op.Get()))
+            c, s = math.cos(a), math.sin(a)
+            R = R @ np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
+        elif t == UsdGeom.XformOp.TypeRotateY:
+            a = math.radians(float(op.Get()))
+            c, s = math.cos(a), math.sin(a)
+            R = R @ np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+    return R
+
+
+def _quat_rot(q: "Gf.Quatf") -> "list[list[float]]":
+    import numpy as np
+
+    w, x, y, z = float(q.GetReal()), *[float(v) for v in q.GetImaginary()]
+    n = math.sqrt(w * w + x * x + y * y + z * z)
+    w, x, y, z = w / n, x / n, y / n, z / n
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        ]
+    )
+
+
+def _frame_mismatch_deg(stage: "Usd.Stage", joint: "Usd.Prim") -> float:
+    """Angular error between a joint's two mating frames, as PhysX sees it."""
+    import numpy as np
+
+    b0 = list(joint.GetRelationship("physics:body0").GetTargets())[0]
+    b1 = list(joint.GetRelationship("physics:body1").GetTargets())[0]
+    r_anchor = _rigid_rot(stage.GetPrimAtPath(str(b0)))
+    r_body = _rigid_rot(stage.GetPrimAtPath(str(b1)))
+    lr0 = _quat_rot(joint.GetAttribute("physics:localRot0").Get())
+    lr1 = _quat_rot(joint.GetAttribute("physics:localRot1").Get())
+    a = r_anchor @ lr0
+    b = r_body @ lr1
+    c = float(np.clip((np.trace(a @ b.T) - 1.0) / 2.0, -1.0, 1.0))
+    return math.degrees(math.acos(c))
+
+
+def _wrap180(d: float) -> float:
+    d = d % 360.0
+    return 360.0 - d if d > 180.0 else d
+
+
+def test_write_usd_sliding_joints_coincide_at_rest():
+    """Every drawer/cabinet slide has zero initial frame error, any yaw."""
+    checked = 0
+    for seed in range(8):
+        scene = generate_scene(ApartmentConfig(width=9.0, depth=7.0, room_count=3, seed=seed))
+        path = write_usd(scene, f"/tmp/hearth_slide_{seed}.usd")
+        stage = Usd.Stage.Open(path)
+        for joint in stage.GetPrimAtPath("/hearth_scene/joints").GetChildren():
+            if joint.GetTypeName() != "PhysicsPrismaticJoint":
+                continue
+            checked += 1
+            assert _frame_mismatch_deg(stage, joint) < 1e-3
+    assert checked > 0
+
+
+def test_slide_yaw_on_body_frame_would_snap():
+    """The convention is the only correct one: rot1=q mismatches by 2*yaw."""
+    yaw = 277.0  # deliberately not a multiple of 90
+    pos = (1.0, 2.0, 0.4)
+    rad = math.radians(yaw)
+    q = Gf.Quatf(math.cos(rad / 2.0), Gf.Vec3f(0.0, 0.0, math.sin(rad / 2.0)))
+
+    # Shipped layout: the yaw lives on the anchor joint frame.
+    good = Usd.Stage.CreateInMemory()
+    gbody = UsdGeom.Cube.Define(good, "/obj")
+    gxf = UsdGeom.Xformable(gbody)
+    gxf.AddTranslateOp().Set(Gf.Vec3d(*pos))
+    gxf.AddRotateZOp().Set(yaw)
+    ganchor = _static_anchor(good, "/anchor", pos)
+    _add_joint(
+        good,
+        "/slide",
+        "prismatic",
+        ganchor.GetPath().pathString,
+        "/obj",
+        "Y",
+        0.0,
+        0.45,
+        local_rot0=q,
+    )
+    assert _frame_mismatch_deg(good, good.GetPrimAtPath("/slide")) < 1e-3
+
+    # First-cut layout: the yaw on the body frame doubles it.
+    bad = Usd.Stage.CreateInMemory()
+    bbody = UsdGeom.Cube.Define(bad, "/obj")
+    bxf = UsdGeom.Xformable(bbody)
+    bxf.AddTranslateOp().Set(Gf.Vec3d(*pos))
+    bxf.AddRotateZOp().Set(yaw)
+    banchor = _static_anchor(bad, "/anchor", pos)
+    _add_joint(
+        bad,
+        "/slide",
+        "prismatic",
+        banchor.GetPath().pathString,
+        "/obj",
+        "Y",
+        0.0,
+        0.45,
+        local_rot1=q,
+    )
+    assert abs(_frame_mismatch_deg(bad, bad.GetPrimAtPath("/slide")) - _wrap180(2 * yaw)) < 1e-2

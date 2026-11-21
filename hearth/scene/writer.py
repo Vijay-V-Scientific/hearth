@@ -169,6 +169,7 @@ def _add_joint(
     lower,
     upper,
     local_pos1=(0.0, 0.0, 0.0),
+    local_rot0=None,
     local_rot1=None,
 ) -> "Any":
     """Author a PhysX revolute or prismatic joint with enabled limits.
@@ -187,7 +188,11 @@ def _add_joint(
     j.CreateAxisAttr().Set(axis)
     j.CreateLocalPos0Attr().Set(Gf.Vec3f(0.0, 0.0, 0.0))
     j.CreateLocalPos1Attr().Set(Gf.Vec3f(*local_pos1))
-    j.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+    # The anchor Xform carries no rotation, so to make the two joint frames
+    # coincide at rest the yaw must live on the anchor (body0) frame: the
+    # body's own Xform already supplies it on the body1 side. Putting yaw on
+    # localRot1 instead doubles it and the joint starts 2*yaw from rest.
+    j.CreateLocalRot0Attr().Set(Gf.Quatf(1.0) if local_rot0 is None else local_rot0)
     j.CreateLocalRot1Attr().Set(Gf.Quatf(1.0) if local_rot1 is None else local_rot1)
     j.CreateLowerLimitAttr().Set(float(lower))
     j.CreateUpperLimitAttr().Set(float(upper))
@@ -372,7 +377,7 @@ def _write_object(stage, obj_path, category, config) -> None:
             "Y",
             0.0,
             _DRAWER_TRAVEL_M,
-            local_rot1=q,
+            local_rot0=q,
         )
 
 
