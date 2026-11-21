@@ -591,3 +591,115 @@ def test_write_usd_sets_default_prim():
     dp = stage.GetDefaultPrim()
     assert dp.IsValid()
     assert dp.GetPath().pathString == "/hearth_scene"
+
+
+def test_furniture_mass_is_realistic_per_category(tmp_path):
+    """Movable furniture carries a plausible real-world mass, not volume x density.
+
+    The writer used to set ``physics:mass`` from bounding-box volume x a single
+    200 kg/m^3 density, which treats hollow furniture as solid: a
+    1.2 x 0.6 x 0.75 m table came out at 108 kg and a sofa at 288 kg. Mass is
+    now taken per category (a table is ~20 kg). Every written rigid body whose
+    category has a reference mass must carry exactly that, NOT the old estimate.
+    """
+    from pxr import UsdPhysics
+
+    from hearth.scene.writer import _CATEGORY_MASS_KG
+
+    seen = 0
+    for seed in range(60):
+        scene = generate_scene(ApartmentConfig(width=9.0, depth=7.0, room_count=3, seed=seed))
+        path = write_usd(scene, str(tmp_path / f"mass_{seed}.usd"))
+        stage = Usd.Stage.Open(path)
+        for prim in stage.Traverse():
+            if not prim.HasAPI(UsdPhysics.RigidBodyAPI):
+                continue
+            cat = (
+                prim.GetAttribute("hearth_category").Get()
+                if prim.HasAttribute("hearth_category")
+                else None
+            )
+            mattr = prim.GetAttribute("physics:mass")
+            if cat in _CATEGORY_MASS_KG and mattr:
+                got = mattr.Get()
+                want = _CATEGORY_MASS_KG[cat]
+                assert got == pytest.approx(want, abs=1e-6), (
+                    f"{cat} mass {got} != {want} (seed {seed})"
+                )
+                seen += 1
+    assert seen > 0, "no categorised rigid bodies were checked"
+
+
+def test_rotated_footprints_stay_inside_rooms_and_apart():
+    """Objects are placed by their ROTATED footprint, not the unrotated box.
+
+    The old generator measured containment and neighbour spacing with the raw
+    (sx, sy), then applied a yaw afterwards to drawers and cabinets. A piece
+    turned to face into the room could poke a corner through the wall it had
+    been measured against, or overlap a neighbour it only cleared while square.
+    Placement now fits the axis-aligned box the yawed object sweeps
+    (``_rotated_extent``), so across many scenes every object's rotated
+    footprint lies inside its room and no two solid footprints intersect.
+    """
+    from hearth.scene.generator import _rotated_extent
+
+    for seed in range(40):
+        sc = generate_scene(ApartmentConfig(width=9.0, depth=7.0, room_count=3, seed=seed))
+        items = []
+        for _cat, o in sc.objects:
+            ex, ey = _rotated_extent(o.size[0], o.size[1], o.orientation_deg)
+            items.append((o, ex, ey))
+            room = next(
+                (
+                    r
+                    for r in sc.rooms
+                    if r.origin_x - 1e-6 <= o.position[0] <= r.origin_x + r.size_x + 1e-6
+                    and r.origin_y - 1e-6 <= o.position[1] <= r.origin_y + r.size_y + 1e-6
+                ),
+                None,
+            )
+            assert room is not None, f"object in no room: seed {seed} {o.category} {o.position}"
+            assert o.position[0] - ex / 2 >= room.origin_x - 1e-6, f"pokes west seed {seed}"
+            assert o.position[0] + ex / 2 <= room.origin_x + room.size_x + 1e-6, (
+                f"pokes east seed {seed}"
+            )
+            assert o.position[1] - ey / 2 >= room.origin_y - 1e-6, f"pokes south seed {seed}"
+            assert o.position[1] + ey / 2 <= room.origin_y + room.size_y + 1e-6, (
+                f"pokes north seed {seed}"
+            )
+        solid = [(o, ex, ey) for (o, ex, ey) in items if o.size[2] > 0.05]  # skip floor rugs
+        for i in range(len(solid)):
+            oi, exi, eyi = solid[i]
+            for j in range(i + 1, len(solid)):
+                oj, exj, eyj = solid[j]
+                ox = abs(oi.position[0] - oj.position[0]) < (exi + exj) / 2 - 1e-6
+                oy = abs(oi.position[1] - oj.position[1]) < (eyi + eyj) / 2 - 1e-6
+                assert not (ox and oy), (
+                    f"rotated overlap seed {seed}: {oi.category} "
+                    f"(yaw {oi.orientation_deg:.0f}) vs {oj.category} (yaw {oj.orientation_deg:.0f})"
+                )
+
+
+def test_door_keep_clear_covers_leaf_swing():
+    """The doorway keep-clear is at least as deep as the leaf swings out.
+
+    The leaf is hinged at the opening centre, so when it swings its tip reaches
+    half the opening width perpendicular to the wall. The old clearance was a
+    flat 0.75 m unrelated to the leaf, so widening a door could leave the leaf
+    hitting furniture. Depth is now derived from the swing with a margin.
+    """
+    from hearth.scene.generator import _DOOR_SWING_MARGIN, _doorway_keep_clear
+
+    sc = generate_scene(ApartmentConfig(width=9.0, depth=7.0, room_count=3, seed=42))
+    assert sc.doorways, "no doorways generated"
+    for dw in sc.doorways:
+        span = dw.along_end - dw.along_start
+        swing_reach = span / 2.0  # perpendicular tip reach of a centre-hinged leaf
+        zones = _doorway_keep_clear(dw)
+        assert len(zones) == 2, "expected one clear zone on each side of the opening"
+        for _cx, _cy, sx, sy in zones:
+            depth = sx if dw.axis == "x" else sy  # extent along the wall normal
+            assert depth >= swing_reach + _DOOR_SWING_MARGIN - 1e-9, (
+                f"keep-clear {depth:.2f} m shallower than leaf swing {swing_reach:.2f} m "
+                f"+ margin for a {span:.2f} m door"
+            )
