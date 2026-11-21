@@ -62,8 +62,9 @@ def main() -> None:
         cfg_light.func("/World/lightDistant", cfg_light, translation=(1, 0, 10))
 
         # The generated apartment, referenced as-is from disk.
+        ap_path = "/World/Apartment"
         cfg_ap = sim_utils.UsdFileCfg(usd_path=str(usd_path.resolve()))
-        cfg_ap.func("/World/Apartment", cfg_ap)
+        cfg_ap.func(ap_path, cfg_ap)
 
         robot_path = "/World/Robot"
         if args_cli.robot == "g1":
@@ -75,19 +76,41 @@ def main() -> None:
         sim.reset()
         stage = sim.stage
         n_prims = sum(1 for _ in stage.Traverse())
+        # Measured evidence that the apartment really spawned: the reference at
+        # /World/Apartment resolves to the file's default prim, so a loaded
+        # apartment has geometry as descendants of that path. A bare reference
+        # with no default prim resolves to nothing -> no descendants, which is
+        # exactly the failure this script used to report as ok=true anyway.
+        n_apartment = sum(1 for p in stage.Traverse() if str(p.GetPath()).startswith(ap_path + "/"))
+        n_apartment_rooms = sum(
+            1 for p in stage.Traverse() if str(p.GetPath()).startswith(ap_path + "/rooms/room_")
+        )
+        apartment_loaded = (
+            stage.GetPrimAtPath(ap_path).IsValid() and n_apartment > 0 and n_apartment_rooms >= 1
+        )
         robot_valid = stage.GetPrimAtPath(robot_path).IsValid() if args_cli.robot == "g1" else "n/a"
-        print(f"[INFO] stage ready: {n_prims} prims; robot prim valid = {robot_valid}", flush=True)
+        print(
+            f"[INFO] stage ready: {n_prims} prims; apartment subtree {n_apartment} prims "
+            f"({n_apartment_rooms} rooms); robot prim valid = {robot_valid}",
+            flush=True,
+        )
 
         for _ in range(args_cli.steps):
             if not sim.is_running():
                 break
             sim.step()
         print(f"[INFO] stepped {args_cli.steps} physics steps without error", flush=True)
+        # ok is derived, never assumed: the apartment must have spawned with its
+        # rooms and, when a robot was requested, its prim must exist.
+        ok = apartment_loaded and robot_valid is not False
         print(
             f"[RESULT] apartment={usd_path.name} rooms={args_cli.rooms} seed={args_cli.seed} "
-            f"prims={n_prims} robot={args_cli.robot} ok=true",
+            f"apartment_prims={n_apartment} apartment_rooms={n_apartment_rooms} "
+            f"prims={n_prims} robot={args_cli.robot} ok={str(ok).lower()}",
             flush=True,
         )
+        if not ok:
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":
