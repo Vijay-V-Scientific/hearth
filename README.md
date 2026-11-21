@@ -16,7 +16,12 @@ An autonomous humanoid household-manipulation research stack: a full-size humano
 
 ## Demo
 
-G1 humanoid walking on rough terrain in Isaac Sim / Isaac Lab (sim-to-real locomotion).
+> **Illustrative reference footage, not a HEARTH result.** The clip shows a
+> Unitree G1 walking on rough terrain and is linked only to convey the goal.
+> No HEARTH policy has run on hardware yet, so nothing here is a measured
+> sim-to-real result (clip provenance: unverified).
+>
+> G1 humanoid walking on rough terrain in Isaac Sim / Isaac Lab.
 
 [![G1 humanoid walking on rough terrain](https://img.youtube.com/vi/0kOhHVG1-OY/hqdefault.jpg)](https://www.youtube.com/watch?v=0kOhHVG1-OY)
 
@@ -25,7 +30,7 @@ G1 humanoid walking on rough terrain in Isaac Sim / Isaac Lab (sim-to-real locom
 | # | Objective | Success criterion | Measured in |
 |---|-----------|-------------------|-------------|
 | 1 | Robust locomotion | 0.0–1.5 m/s, turns, 15 cm steps; < 1 fall / 1,000 m; survives 150 N lateral push | Sim + real |
-| 2 | Loco-manipulation | Opens 90% of unseen doors/drawers/cabinances standing on 1–2 feet | Sim + real |
+| 2 | Loco-manipulation | Opens 90% of unseen doors/drawers/cabinets standing on 1–2 feet | Sim + real |
 | 3 | Dexterous grasping | 85% grasp success on 500 held-out household objects | Sim + real |
 | 4 | Long-horizon tasks | 70% success on 50 benchmark tasks, 5–15 sub-steps, from a language instruction | Sim |
 | 5 | Recovery | Recovers 80% of injected failures without a reset | Sim |
@@ -45,6 +50,21 @@ The actual tensors are produced by Isaac Lab at runtime; these classes only
 describe the interface so the eval harness can call them without Isaac Sim.
 
 ## Repository map
+
+```
+hearth/scene/    procedural apartment generator + USD writer (runs without Isaac)
+hearth/eval/     50-task benchmark, mock + baseline runners, markdown reports
+hearth/isaac/    control-layer dataclasses, planner, TaskRunner (integration points)
+hearth/sim2real/ G1 sim-vs-real replay gate (joint-replay RMSE < 3 deg)
+hearth/data/     episode format + parquet / hdf5 / jsonl converters
+hearth/training/ PPO / diffusion / VLA configs + loader
+hearth/deploy/   calibration + ROS 2 bridge (scaffolding)
+configs/         apartment, benchmark, training and robot configs
+scripts/         Isaac launch + G1 smoke-test scripts
+tests/           host-only test suite (runs without Isaac Sim)
+docs/            architecture + handover
+eval_reports/    generated reports (stand-ins carry a banner)
+```
 
 ## How to read this repo
 
@@ -80,6 +100,14 @@ python -m hearth.data.cli load /tmp/episode.parquet
 
 See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on GitHub.
 
+> **These are build milestones, not measured results.** Every row below marks
+> code *shipped and unit-tested on a CPU box* — not that the six objective
+> targets above have been hit. As of this commit none of them is measured: the
+> locomotion gate (G1) is defined in `hearth/sim2real/replay.py` but has no
+> robot logs to score yet, and `eval_reports/hearth_50_default.md` is a
+> prior-based stand-in (its own header says so). Treat 'done' here as
+> 'runnable scaffolding', nothing more.
+
 | # | Milestone | Status |
 |---|-----------|--------|
 | 1 | Repo scaffolding, docs, config, CI | done |
@@ -88,7 +116,7 @@ See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on Git
 | 4 | Data pipeline + storage format | done · `hearth-data` CLI saves/loads HDF5, Parquet and JSONL; round-trip verified, all tests pass |
 | 5 | Training configs (PPO/diffusion/VLA) | done · `hearth/training/` configs + loader + validation, tests pass |
 | 6 | Evaluation harness | done · `hearth-eval` CLI passes smoke test |
-| 7 | Sim-to-real + deployment | done · `hearth/deploy/` calibrators + ROS 2 bridge, tests pass |
+| 7 | Sim-to-real + deployment | scaffolding · calibrators + ROS 2 bridge unit-test; **no hardware transfer measured** |
 | 8 | Docker, datasheet, architecture, handover | done · `docker/`, `docs/architecture.md`, `docs/handover.md` |
 
 ## Docker
@@ -116,4 +144,8 @@ See [Milestones](https://github.com/Vijay-V-Scientific/hearth/milestones) on Git
 
 ## License
 
-Proprietary working repo for Project HEARTH. See `LICENSE`.
+Proprietary working repo for Project HEARTH.
+
+> No `LICENSE` file has been added yet; the license terms still need to
+> be chosen by the owner. Until one is committed, all rights are reserved
+> and nothing here may be redistributed.
